@@ -9,6 +9,7 @@ import {
   BookOpen,
   Bookmark,
   Bot,
+  Boxes,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -29,6 +30,7 @@ import {
   Send,
   Settings,
   Sparkles,
+  SquareArrowOutUpRight,
   ThumbsDown,
   ThumbsUp,
   Upload,
@@ -89,6 +91,19 @@ const messageMetadataSchema = z.object({
 
 type WorkspaceView = "chat" | "library";
 type InspectorTab = "sources" | "process";
+type SourceViewMode = "excerpt" | "pdf";
+
+function getPdfPageFromCitation(citation?: Citation) {
+  if (!citation) return null;
+  if (citation.pageNumber) return citation.pageNumber;
+  const match = citation.sourceUrl?.match(/#page=(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
+function canPreviewPdf(citation?: Citation) {
+  if (!citation?.sourceUrl) return false;
+  return /\.pdf(?:$|[?#])/i.test(citation.sourceUrl);
+}
 
 export function ChatShell({
   initialConversations,
@@ -795,6 +810,7 @@ function Inspector({
       <div className="flex-1 overflow-y-auto p-4">
         {tab === "sources" ? (
           <SourcesPanel
+            key={`${citation?.documentTitle ?? "empty"}-${citation?.clause ?? "na"}-${citation?.pageNumber ?? "na"}-${citation?.sourceUrl ?? "na"}`}
             citation={citation}
             citations={citations}
             relatedDocuments={relatedDocuments}
@@ -826,6 +842,8 @@ function SourcesPanel({
   selectedCitation: number;
   setSelectedCitation: (index: number) => void;
 }) {
+  const [sourceViewMode, setSourceViewMode] = useState<SourceViewMode>("excerpt");
+
   if (!citation && relatedDocuments.length > 0) {
     return <RelatedDocuments documents={relatedDocuments} />;
   }
@@ -868,12 +886,42 @@ function SourcesPanel({
       ) : null}
 
       <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="grid grid-cols-2 rounded-lg bg-secondary p-1 text-xs">
+            <button
+              className={cn("rounded-md px-3 py-1.5", sourceViewMode === "excerpt" && "bg-white font-medium text-primary shadow-sm")}
+              onClick={() => setSourceViewMode("excerpt")}
+            >
+              原文片段
+            </button>
+            <button
+              className={cn("rounded-md px-3 py-1.5", sourceViewMode === "pdf" && "bg-white font-medium text-primary shadow-sm")}
+              disabled={!canPreviewPdf(citation)}
+              onClick={() => setSourceViewMode("pdf")}
+            >
+              PDF 预览
+            </button>
+          </div>
+
+          {citation.sourceUrl ? (
+            <a
+              className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-blue-50"
+              href={citation.sourceUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <SquareArrowOutUpRight className="size-3.5" />
+              新窗口
+            </a>
+          ) : null}
+        </div>
+
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold leading-5">{citation.documentTitle}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {citation.version ?? "版本待核实"} · {citation.clause ?? "条款待核实"}
-              {citation.pageNumber ? ` · PDF 第 ${citation.pageNumber} 页` : ""}
+              {getPdfPageFromCitation(citation) ? ` · PDF 第 ${getPdfPageFromCitation(citation)} 页` : ""}
             </p>
           </div>
           <FileCheck2 className="size-5 shrink-0 text-primary" />
@@ -881,18 +929,52 @@ function SourcesPanel({
 
         <div className="my-4 h-px bg-border" />
 
-        <blockquote className="border-s-2 border-primary/30 ps-3 text-xs leading-6 text-slate-600">
-          {citation.excerpt}
-        </blockquote>
+        {sourceViewMode === "excerpt" ? (
+          <>
+            <blockquote className="border-s-2 border-primary/30 ps-3 text-xs leading-6 text-slate-600">
+              {citation.excerpt}
+            </blockquote>
 
-        {citation.sourceUrl ? (
-          <a className="mt-4 flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium text-primary hover:bg-blue-50" href={citation.sourceUrl} rel="noreferrer" target="_blank">
-            <ExternalLink className="size-3.5" />
-            {citation.pageNumber ? `定位到 PDF 第 ${citation.pageNumber} 页` : "查看原文"}
-          </a>
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] leading-5 text-muted-foreground">
+              {getPdfPageFromCitation(citation)
+                ? `当前可直接定位到 PDF 第 ${getPdfPageFromCitation(citation)} 页。段落级高亮仍依赖知识库返回更精确的锚点信息。`
+                : "当前引用可展示原文片段，但尚未拿到可靠页码，因此只能打开整份 PDF 供人工核对。"}
+            </div>
+
+            {citation.sourceUrl ? (
+              <a className="mt-4 flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium text-primary hover:bg-blue-50" href={citation.sourceUrl} rel="noreferrer" target="_blank">
+                <ExternalLink className="size-3.5" />
+                {getPdfPageFromCitation(citation) ? `定位到 PDF 第 ${getPdfPageFromCitation(citation)} 页` : "查看原文 PDF"}
+              </a>
+            ) : (
+              <div className="mt-4 rounded-lg bg-secondary px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+                当前知识库仅提供检索片段，原始 PDF 暂未关联。
+              </div>
+            )}
+          </>
+        ) : canPreviewPdf(citation) ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-2 text-[11px] text-slate-600">
+              <span className="inline-flex items-center gap-1.5">
+                <Boxes className="size-3.5 text-primary" />
+                {getPdfPageFromCitation(citation)
+                  ? `已定位到 PDF 第 ${getPdfPageFromCitation(citation)} 页`
+                  : "当前仅能预览整份 PDF，未拿到可靠页码"}
+              </span>
+              <span className="text-muted-foreground">段落高亮待后续锚点增强</span>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border bg-slate-100">
+              <iframe
+                className="h-[460px] w-full bg-white"
+                src={citation.sourceUrl}
+                title={`${citation.documentTitle} PDF 预览`}
+              />
+            </div>
+          </div>
         ) : (
-          <div className="mt-4 rounded-lg bg-secondary px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-            当前知识库仅提供检索片段，原始 PDF 暂未关联。
+          <div className="rounded-lg border border-dashed px-4 py-6 text-center text-[11px] leading-5 text-muted-foreground">
+            当前引用未关联可预览的 PDF 文件，请先使用“原文片段”核对，或在知识库中补齐 PDF 映射。
           </div>
         )}
       </div>
@@ -969,6 +1051,9 @@ function RelatedDocuments({ documents }: { documents: RelatedStandardDocument[] 
           <a key={document.code} className="block rounded-xl border bg-white p-4 shadow-sm transition hover:border-primary/30" href={document.sourceUrl} rel="noreferrer" target="_blank">
             <p className="text-sm font-medium text-slate-900">{document.title}</p>
             <p className="mt-1 text-xs text-muted-foreground">{document.code}</p>
+            <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+              当前尚未拿到精确引用锚点，可先打开整份 PDF 进行人工定位。
+            </p>
             <p className="mt-3 inline-flex items-center gap-2 text-xs font-medium text-primary">
               <ExternalLink className="size-3.5" />
               打开 PDF 原文
