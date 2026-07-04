@@ -32,7 +32,13 @@ function normalizeChinesePhone(value: string) {
   return /^1\d{10}$/.test(compact) ? `+86${compact}` : compact;
 }
 
-export function AuthForm() {
+export function AuthForm({
+  initialMessage = null,
+  redirectTo = "/",
+}: {
+  initialMessage?: string | null;
+  redirectTo?: string;
+}) {
   const router = useRouter();
   const [method, setMethod] = useState<LoginMethod>("email");
   const [email, setEmail] = useState("");
@@ -42,7 +48,7 @@ export function AuthForm() {
   const [otpSent, setOtpSent] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(initialMessage);
 
   function selectMethod(nextMethod: LoginMethod) {
     setMethod(nextMethod);
@@ -58,13 +64,19 @@ export function AuthForm() {
     try {
       const supabase = createClient();
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(redirectTo)}`,
+          },
+        });
         if (error) throw error;
         setMessage("注册成功，请前往邮箱完成验证。");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push("/");
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (error) {
@@ -93,7 +105,7 @@ export function AuthForm() {
           type: "sms",
         });
         if (error) throw error;
-        router.push("/");
+        router.push(redirectTo);
         router.refresh();
       }
     } catch (error) {
@@ -110,7 +122,9 @@ export function AuthForm() {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "custom:wechat",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+        },
       });
       if (error) throw error;
     } catch (error) {

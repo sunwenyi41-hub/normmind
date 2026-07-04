@@ -1,12 +1,13 @@
 # 规智 NormMind
 
-面向建筑、规划与景观设计师的规范智能知识问答 Agent。网站提供快速问答、深度检索、规范引用追溯、会话历史与回答反馈；知识检索和 Agentic RAG 由 Coze 工作流承担。
+面向建筑、规划与景观设计师的规范智能知识问答 Agent。网站提供快速问答、深度检索、规范引用追溯、会话历史与回答反馈；当前网站侧由 LangChain Agent 编排，知识检索由 Coze Bot 单轮调用优先承担。
 
 ## 技术栈
 
 - Next.js 16 App Router、React 19、TypeScript、Tailwind CSS、shadcn/ui 源码组件
 - Supabase Auth + Postgres + RLS
-- Coze Workflow API
+- OpenRouter API
+- Coze Bot / Workflow fallback API
 - Vercel Fluid Compute
 
 ## 本地启动
@@ -17,7 +18,13 @@ cp .env.example .env.local
 npm run dev
 ```
 
-未配置 Supabase 时，开发环境会自动进入演示模式；若已配置 Coze，问答将调用真实工作流，但不会持久化会话。生产环境不会启用演示模式。
+未配置 Supabase 时，开发环境会自动进入演示模式；若已配置 Supabase 与 Coze，问答将调用真实 Agent 链路并持久化会话。生产环境不会启用演示模式。
+
+### 开发测试数据
+
+- 登录后可在左侧边栏点击“生成测试数据”，一键写入 3 组示例会话到当前账号
+- 该能力只在开发环境开放，对应接口为 `POST /api/dev/seed`
+- 生成的数据会同时写入 `conversations.messages_json` 和 `messages` 审计表
 
 ## Supabase 配置
 
@@ -35,7 +42,9 @@ npm run dev
 
 ## Coze 工作流契约
 
-服务端向 `/workflow/run` 发送：
+服务端优先向 Coze Bot Chat API 发起单轮请求；若 Bot 接口失败，且配置了 workflow id，则退回 Workflow fallback。
+
+Workflow fallback 发送：
 
 ```json
 {
@@ -63,7 +72,7 @@ npm run dev
 
 没有引用时，服务端会自动降级为“证据不足”，不会输出确定性结论。
 
-当前工作流若只返回纯文本 `output`，网站也可以展示，但会标记“引用待补充”。要启用规范引用卡片，请将 Coze 结束节点改为输出 `answer` 和 `citations`。
+当前 Coze 若只返回纯文本，网站也可以展示，但会标记“证据不足”。要启用规范引用卡片，请确保 Bot 或 Workflow 最终能返回 `answer` 和 `citations`。
 
 ## 校验
 
@@ -73,6 +82,8 @@ npm run build
 ```
 
 `evals/questions.json` 包含 50 条初始评测题框架。上线前需由规范专家补充期望规范、条款和版本，并使用真实 Coze 环境跑完评测。
+
+`supabase/tests/ownership_rls.sql` 提供了最小 RLS / 所有权回归脚本骨架，适合在上线前手动验证跨用户隔离。
 
 ## GitHub 与 Vercel
 

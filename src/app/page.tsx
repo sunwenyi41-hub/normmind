@@ -7,7 +7,7 @@ export default async function Home() {
   if (isPreviewMode) return <ChatShell initialConversations={[]} previewMode />;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=%2F");
   const { data } = await supabase
     .from("conversations")
     .select("id,title,updated_at")

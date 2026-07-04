@@ -47,6 +47,7 @@ import {
   getMessageCitations,
   getMessageText,
 } from "@/lib/chat";
+import { isDevelopment } from "@/lib/env";
 import { findRelatedStandardDocuments, type RelatedStandardDocument } from "@/lib/standard-documents";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +103,7 @@ export function ChatShell({
   const [draftId, setDraftId] = useState(() => crypto.randomUUID());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const currentConversationId = activeId ?? draftId;
   const currentMessages = activeId ? (messageCache[activeId] ?? []) : [];
@@ -156,6 +158,22 @@ export function ChatShell({
     }
   }
 
+  async function seedDevelopmentData() {
+    if (!isDevelopment || previewMode || seeding) return;
+    setSeeding(true);
+    try {
+      const response = await fetch("/api/dev/seed", { method: "POST" });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) return;
+      setConversations(data?.conversations ?? []);
+      if (data?.seededConversationId) {
+        await loadConversation(String(data.seededConversationId));
+      }
+    } finally {
+      setSeeding(false);
+    }
+  }
+
   function newConversation() {
     setActiveId(null);
     setDraftId(crypto.randomUUID());
@@ -180,6 +198,12 @@ export function ChatShell({
             <MessageSquarePlus className="size-4" />
             新建对话
           </Button>
+          {isDevelopment && !previewMode ? (
+            <Button className="mt-2 w-full justify-start gap-2 rounded-xl" disabled={seeding} variant="outline" onClick={() => void seedDevelopmentData()}>
+              {seeding ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              生成测试数据
+            </Button>
+          ) : null}
         </div>
 
         <div className="px-4 text-xs font-medium text-muted-foreground">最近会话</div>
