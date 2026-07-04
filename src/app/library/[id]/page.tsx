@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink, FileText, Library, Settings } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Library, Settings, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isPreviewMode } from "@/lib/env";
@@ -52,6 +52,13 @@ export default async function LibraryDocumentPage({
             >
               <Settings className="size-3.5" />
               账户设置
+            </Link>
+            <Link
+              className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700"
+              href={previewMode ? "/admin?preview=1" : "/admin"}
+            >
+              <ShieldCheck className="size-3.5" />
+              管理后台
             </Link>
           </div>
         </header>

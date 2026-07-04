@@ -8,6 +8,7 @@ import { DefaultChatTransport } from "ai";
 import {
   AlertCircle,
   ArrowRight,
+  BarChart3,
   BookOpen,
   Bookmark,
   Bot,
@@ -16,9 +17,11 @@ import {
   CheckCircle2,
   ChevronRight,
   Clipboard,
+  ClipboardList,
   Clock3,
   Download,
   ExternalLink,
+  FlaskConical,
   FileCheck2,
   FileSearch,
   FolderOpen,
@@ -26,10 +29,12 @@ import {
   Library,
   Loader2,
   Menu,
+  MessageSquareWarning,
   MessageSquarePlus,
   PanelRight,
   RefreshCcw,
   Search,
+  ShieldCheck,
   Send,
   Settings,
   Sparkles,
@@ -520,6 +525,12 @@ function Workspace({
                 href={previewMode ? "/settings?preview=1" : "/settings"}
               >
                 账户设置
+              </Link>
+              <Link
+                className={cn("hidden rounded-full px-3 py-1.5 text-xs font-medium md:inline-flex", pathname === "/admin" ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}
+                href={previewMode ? "/admin?preview=1" : "/admin"}
+              >
+                管理后台
               </Link>
               <Button size="sm" variant="ghost" onClick={signOut}>
                 <User className="me-2 size-4" />
@@ -1699,6 +1710,153 @@ export function AccountSettingsView({
             <div className="rounded-2xl border border-dashed px-4 py-3">
               个人常用规范范围与企业知识库偏好
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AdminOpsView({
+  previewMode = false,
+}: {
+  previewMode?: boolean;
+}) {
+  const sampleSuites = [
+    { name: "条文查找基线集", count: 18, score: "92%", status: "已达标" },
+    { name: "多规范推理集", count: 14, score: "81%", status: "需优化" },
+    { name: "无答案兜底集", count: 9, score: "89%", status: "已达标" },
+  ];
+
+  const feedbackItems = [
+    { title: "消防车道宽度比较回答过于笼统", source: "用户反馈", time: "今天 10:24", severity: "高" },
+    { title: "住宅厨房通风回答缺少版本提示", source: "评测回归", time: "今天 09:10", severity: "中" },
+    { title: "深度检索耗时超过 30 秒", source: "性能监控", time: "昨天 18:42", severity: "中" },
+  ];
+
+  return (
+    <div className="grid gap-6 p-6 xl:grid-cols-[0.92fr_1.08fr]">
+      <div className="space-y-6">
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="size-4 text-primary" />
+            <p className="text-lg font-semibold">管理后台概览</p>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            面向 QA 样本、评测、反馈与 Agent 调优的最小后台骨架。当前为演示版，后续会接入真实权限与数据表。
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <DetailStat label="后台状态" value={previewMode ? "体验模式" : "管理员模式"} />
+            <DetailStat label="评测集数量" value="3 套" />
+            <DetailStat label="待处理反馈" value="7 条" />
+            <DetailStat label="最近评测通过率" value="87%" />
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="size-4 text-primary" />
+            <p className="text-lg font-semibold">QA 样本管理</p>
+          </div>
+          <div className="mt-4 space-y-3">
+            {[
+              ["标准问法", "覆盖高频条文查询与版本确认问题。"],
+              ["复杂追问", "覆盖多轮追问、条件补充与跨规范比较。"],
+              ["拒答 / 证据不足", "覆盖无引用、无结论与版本不明场景。"],
+            ].map(([title, description]) => (
+              <div key={title} className="rounded-2xl border bg-slate-50 px-4 py-3">
+                <p className="text-sm font-medium text-slate-900">{title}</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Bot className="size-4 text-primary" />
+            <p className="text-lg font-semibold">Agent 配置</p>
+          </div>
+          <div className="mt-4 space-y-4">
+            <SettingRow
+              title="普通模式工作流"
+              description="当前指向 Coze 单轮知识问答流程，用于常规条文查询。"
+              status="已接入"
+            />
+            <SettingRow
+              title="深度模式工作流"
+              description="当前指向 Coze 深度检索流程，用于多规范推理与复杂问答。"
+              status="已接入"
+            />
+            <SettingRow
+              title="RAG 审计位"
+              description="预留召回样本、重排差异、无引用率与版本缺失率展示区域。"
+              status="待补数据"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <FlaskConical className="size-4 text-primary" />
+            <p className="text-lg font-semibold">评测系统</p>
+          </div>
+          <div className="mt-4 space-y-3">
+            {sampleSuites.map((suite) => (
+              <div key={suite.name} className="rounded-2xl border bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{suite.name}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{suite.count} 道样本 · 最近一次回归结果</p>
+                  </div>
+                  <Badge className={suite.status === "已达标" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
+                    {suite.status}
+                  </Badge>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>通过率</span>
+                  <span className="font-medium text-slate-700">{suite.score}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <MessageSquareWarning className="size-4 text-primary" />
+            <p className="text-lg font-semibold">用户反馈与问题工单</p>
+          </div>
+          <div className="mt-4 space-y-3">
+            {feedbackItems.map((item) => (
+              <div key={item.title} className="rounded-2xl border bg-slate-50 px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{item.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.source} · {item.time}</p>
+                  </div>
+                  <Badge className={item.severity === "高" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
+                    {item.severity}优先级
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="size-4 text-primary" />
+            <p className="text-lg font-semibold">运营与质量监控</p>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <DetailStat label="无引用率" value="6.8%" />
+            <DetailStat label="版本缺失率" value="9.3%" />
+            <DetailStat label="深度模式 P95" value="24.6s" />
+            <DetailStat label="有帮助反馈率" value="82%" />
           </div>
         </div>
       </div>
