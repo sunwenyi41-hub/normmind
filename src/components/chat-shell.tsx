@@ -64,6 +64,7 @@ import {
   type RelatedStandardDocument,
   type StandardLibraryDocument,
 } from "@/lib/standard-documents";
+import { agentConfigs, evalSuites, feedbackItems, qaSampleGroups, qualityMetrics } from "@/lib/admin-demo";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1722,18 +1723,6 @@ export function AdminOpsView({
 }: {
   previewMode?: boolean;
 }) {
-  const sampleSuites = [
-    { name: "条文查找基线集", count: 18, score: "92%", status: "已达标" },
-    { name: "多规范推理集", count: 14, score: "81%", status: "需优化" },
-    { name: "无答案兜底集", count: 9, score: "89%", status: "已达标" },
-  ];
-
-  const feedbackItems = [
-    { title: "消防车道宽度比较回答过于笼统", source: "用户反馈", time: "今天 10:24", severity: "高" },
-    { title: "住宅厨房通风回答缺少版本提示", source: "评测回归", time: "今天 09:10", severity: "中" },
-    { title: "深度检索耗时超过 30 秒", source: "性能监控", time: "昨天 18:42", severity: "中" },
-  ];
-
   return (
     <div className="grid gap-6 p-6 xl:grid-cols-[0.92fr_1.08fr]">
       <div className="space-y-6">
@@ -1760,14 +1749,10 @@ export function AdminOpsView({
             <p className="text-lg font-semibold">QA 样本管理</p>
           </div>
           <div className="mt-4 space-y-3">
-            {[
-              ["标准问法", "覆盖高频条文查询与版本确认问题。"],
-              ["复杂追问", "覆盖多轮追问、条件补充与跨规范比较。"],
-              ["拒答 / 证据不足", "覆盖无引用、无结论与版本不明场景。"],
-            ].map(([title, description]) => (
-              <div key={title} className="rounded-2xl border bg-slate-50 px-4 py-3">
-                <p className="text-sm font-medium text-slate-900">{title}</p>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">{description}</p>
+            {qaSampleGroups.map((group) => (
+              <div key={group.title} className="rounded-2xl border bg-slate-50 px-4 py-3">
+                <p className="text-sm font-medium text-slate-900">{group.title}</p>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{group.description}</p>
               </div>
             ))}
           </div>
@@ -1779,21 +1764,14 @@ export function AdminOpsView({
             <p className="text-lg font-semibold">Agent 配置</p>
           </div>
           <div className="mt-4 space-y-4">
-            <SettingRow
-              title="普通模式工作流"
-              description="当前指向 Coze 单轮知识问答流程，用于常规条文查询。"
-              status="已接入"
-            />
-            <SettingRow
-              title="深度模式工作流"
-              description="当前指向 Coze 深度检索流程，用于多规范推理与复杂问答。"
-              status="已接入"
-            />
-            <SettingRow
-              title="RAG 审计位"
-              description="预留召回样本、重排差异、无引用率与版本缺失率展示区域。"
-              status="待补数据"
-            />
+            {agentConfigs.map((item) => (
+              <SettingRow
+                key={item.title}
+                title={item.title}
+                description={item.description}
+                status={item.status}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -1805,7 +1783,7 @@ export function AdminOpsView({
             <p className="text-lg font-semibold">评测系统</p>
           </div>
           <div className="mt-4 space-y-3">
-            {sampleSuites.map((suite) => (
+            {evalSuites.map((suite) => (
               <div key={suite.name} className="rounded-2xl border bg-slate-50 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1853,10 +1831,9 @@ export function AdminOpsView({
             <p className="text-lg font-semibold">运营与质量监控</p>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <DetailStat label="无引用率" value="6.8%" />
-            <DetailStat label="版本缺失率" value="9.3%" />
-            <DetailStat label="深度模式 P95" value="24.6s" />
-            <DetailStat label="有帮助反馈率" value="82%" />
+            {qualityMetrics.map((metric) => (
+              <DetailStat key={metric.label} label={metric.label} value={metric.value} />
+            ))}
           </div>
         </div>
       </div>

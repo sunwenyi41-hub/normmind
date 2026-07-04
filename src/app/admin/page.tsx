@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Library, Settings, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Bot, ClipboardList, FlaskConical, MessageSquareWarning } from "lucide-react";
+import { AdminShell } from "@/components/admin-layout";
 import { AdminOpsView } from "@/components/chat-shell";
 import { isPreviewMode } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -20,37 +21,43 @@ export default async function AdminPage({
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7fb] p-4 lg:p-6">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-4 flex flex-wrap items-center gap-3 rounded-[28px] border bg-white px-5 py-4 shadow-sm">
-          <Link className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700" href={previewMode ? "/?preview=1" : "/"}>
-            <ArrowLeft className="size-3.5" />
-            返回工作台
-          </Link>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900">规智 · 管理后台</p>
-            <p className="mt-1 text-xs text-muted-foreground">最小化 QA、评测、反馈与 Agent 调优运营台</p>
+    <AdminShell
+      previewMode={previewMode}
+      current="overview"
+      title="规智 · 管理后台"
+      description="最小化 QA、评测、反馈与 Agent 调优运营台"
+    >
+      <div>
+        <div className="border-b bg-white/70 px-6 py-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              { href: "/admin/qa", label: "QA 样本管理", icon: ClipboardList, desc: "查看样本分类与维护入口" },
+              { href: "/admin/evals", label: "评测系统", icon: FlaskConical, desc: "查看评测集与最近回归结果" },
+              { href: "/admin/feedback", label: "反馈工单", icon: MessageSquareWarning, desc: "查看问题来源与处理优先级" },
+              { href: "/admin/agent", label: "Agent 配置", icon: Bot, desc: "查看工作流接入与审计位" },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  className="rounded-2xl border bg-slate-50 px-4 py-4 transition hover:border-primary/30 hover:bg-blue-50/40"
+                  href={previewMode ? `${item.href}?preview=1` : item.href}
+                >
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <Icon className="size-4 text-primary" />
+                    {item.label}
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.desc}</p>
+                </Link>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-2">
-            <Link className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700" href={previewMode ? "/library?preview=1" : "/library"}>
-              <Library className="size-3.5" />
-              资料库
-            </Link>
-            <Link className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700" href={previewMode ? "/settings?preview=1" : "/settings"}>
-              <Settings className="size-3.5" />
-              账户设置
-            </Link>
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-primary">
-              <ShieldCheck className="size-3.5" />
-              管理后台
-            </span>
-          </div>
-        </header>
+        </div>
 
-        <div className="rounded-[28px] border bg-[#fcfdff] shadow-[0_40px_120px_-52px_rgba(15,23,42,0.35)]">
+        <div className="rounded-[28px] border-0 shadow-none">
           <AdminOpsView previewMode={previewMode} />
         </div>
       </div>
-    </main>
+    </AdminShell>
   );
 }
