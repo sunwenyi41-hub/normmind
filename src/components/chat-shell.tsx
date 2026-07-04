@@ -55,6 +55,7 @@ import {
   findRelatedStandardDocuments,
   getStandardLibraryDocuments,
   type RelatedStandardDocument,
+  type StandardLibraryDocument,
 } from "@/lib/standard-documents";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -1156,11 +1157,22 @@ function LibraryView({
   uploadStep: number;
   setUploadStep: (value: number) => void;
 }) {
-  const documents = useMemo(() => getStandardLibraryDocuments(), []);
+  const initialDocuments = useMemo(() => getStandardLibraryDocuments(), []);
+  const [documents, setDocuments] = useState<StandardLibraryDocument[]>(initialDocuments);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("全部");
   const [statusFilter, setStatusFilter] = useState("全部");
-  const [selectedId, setSelectedId] = useState<string>(documents[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState<string>(initialDocuments[0]?.id ?? "");
+  const [recentlyPublishedTitle, setRecentlyPublishedTitle] = useState("");
+  const [draftUpload, setDraftUpload] = useState({
+    fileName: "住宅厨卫通风设计要点（内部整理）.pdf",
+    fileType: "PDF",
+    category: "建筑" as StandardLibraryDocument["category"],
+    version: "2026 试行整理版",
+    tags: "住宅, 厨房, 卫生间, 通风",
+    summary: "聚合住宅厨房与卫生间的通风设计条文、设备预留和常见核对点，用于企业内部快速检索。",
+    publishScope: "全库",
+  });
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((document) => {
@@ -1180,6 +1192,40 @@ function LibraryView({
     filteredDocuments[0] ??
     null;
 
+  const uploadFlowNotes = {
+    0: "支持上传 PDF、Word、CSV 等规范资料，后续将接入真实存储与权限边界。",
+    1: "模拟 Coze / 外部知识库解析状态，后续可替换为真实任务队列与进度回调。",
+    2: "在标签确认阶段补齐专业分类、版本、生效状态和业务标签。",
+    3: "发布后进入知识库可检索范围，并可挂接企业库或指定规范范围。",
+  } as const;
+
+  const parsedTags = draftUpload.tags
+    .split(/[，,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const publishDraftDocument = () => {
+    const nextDocument: StandardLibraryDocument = {
+      id: `draft-${crypto.randomUUID()}`,
+      title: draftUpload.fileName.replace(/\.(pdf|docx?|csv)$/i, ""),
+      code: `企业资料 / ${draftUpload.fileType}`,
+      version: draftUpload.version,
+      category: draftUpload.category,
+      status: "已发布",
+      updatedAt: "刚刚",
+      chunks: 128,
+      tags: parsedTags.length > 0 ? parsedTags : ["待补标签"],
+      sourceUrl: "/standards/GB50096-2011%20住宅设计规范.pdf",
+      summary: draftUpload.summary,
+    };
+
+    setDocuments((current) => [nextDocument, ...current]);
+    setSelectedId(nextDocument.id);
+    setRecentlyPublishedTitle(nextDocument.title);
+    setStatusFilter("全部");
+    setQuery("");
+  };
+
   return (
     <div className="grid gap-6 p-6 xl:grid-cols-[1.15fr_0.85fr]">
       <div className="rounded-[28px] border bg-white p-6 shadow-sm">
@@ -1188,7 +1234,7 @@ function LibraryView({
             <p className="text-lg font-semibold text-slate-900">规范资料库</p>
             <p className="mt-1 text-sm text-muted-foreground">支持按规范名称、专业分类、状态和标签浏览资料，并查看详情。</p>
           </div>
-          <Button>
+          <Button onClick={() => setUploadStep(0)}>
             <Upload className="me-2 size-4" />
             上传资料
           </Button>
@@ -1334,6 +1380,14 @@ function LibraryView({
             <Settings className="size-4 text-primary" />
             <p className="text-lg font-semibold">入库流程</p>
           </div>
+
+          {recentlyPublishedTitle ? (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              <p className="font-medium">已发布到资料库</p>
+              <p className="mt-1 text-xs leading-5">{recentlyPublishedTitle} 已进入可检索范围，并出现在左侧资料列表顶部。</p>
+            </div>
+          ) : null}
+
           <div className="mt-6 space-y-3">
             {["上传文件", "智能解析", "标签确认", "发布入库"].map((step, index) => (
               <button key={step} className={cn("flex w-full items-center gap-3 rounded-2xl border p-4 text-left", uploadStep === index ? "border-primary bg-blue-50/50" : "bg-white")} onClick={() => setUploadStep(index)}>
@@ -1351,13 +1405,182 @@ function LibraryView({
           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-medium text-slate-900">当前步骤说明</p>
             <p className="mt-2 text-xs leading-6 text-muted-foreground">
-              {{
-                0: "支持上传 PDF、Word、CSV 等规范资料，后续将接入真实存储与权限边界。",
-                1: "模拟 Coze / 外部知识库解析状态，后续可替换为真实任务队列与进度回调。",
-                2: "在标签确认阶段补齐专业分类、版本、生效状态和业务标签。",
-                3: "发布后进入知识库可检索范围，并可挂接企业库或指定规范范围。",
-              }[uploadStep as 0 | 1 | 2 | 3]}
+              {uploadFlowNotes[uploadStep as 0 | 1 | 2 | 3]}
             </p>
+          </div>
+
+          <div className="mt-5 rounded-2xl border bg-white p-4">
+            {uploadStep === 0 ? (
+              <div>
+                <p className="text-sm font-medium text-slate-900">1. 上传文件</p>
+                <div className="mt-4 space-y-4">
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-medium text-muted-foreground">资料名称</span>
+                    <input
+                      className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none"
+                      value={draftUpload.fileName}
+                      onChange={(event) => setDraftUpload((current) => ({ ...current, fileName: event.target.value }))}
+                    />
+                  </label>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium text-muted-foreground">文件类型</span>
+                      <select
+                        className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none"
+                        value={draftUpload.fileType}
+                        onChange={(event) => setDraftUpload((current) => ({ ...current, fileType: event.target.value }))}
+                      >
+                        {["PDF", "Word", "CSV"].map((item) => (
+                          <option key={item} value={item}>{item}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium text-muted-foreground">建议分类</span>
+                      <select
+                        className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none"
+                        value={draftUpload.category}
+                        onChange={(event) => setDraftUpload((current) => ({ ...current, category: event.target.value as StandardLibraryDocument["category"] }))}
+                      >
+                        {["建筑", "规划", "景观", "市政", "暖通"].map((item) => (
+                          <option key={item} value={item}>{item}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="rounded-2xl border border-dashed bg-slate-50 px-4 py-4 text-xs leading-6 text-muted-foreground">
+                    当前为前端原型：这里模拟上传成功，后续会接入真实文件存储、解析队列和权限控制。
+                  </div>
+                  <Button className="w-full" onClick={() => setUploadStep(1)}>
+                    开始解析
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {uploadStep === 1 ? (
+              <div>
+                <p className="text-sm font-medium text-slate-900">2. 智能解析</p>
+                <div className="mt-4 space-y-4">
+                  {[
+                    { label: "文件抽取", value: 100, detail: "PDF 文本已抽取" },
+                    { label: "条文切片", value: 84, detail: "已生成 128 个知识片段" },
+                    { label: "元数据识别", value: 76, detail: "已识别版本、专业与部分标签" },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700">{item.label}</span>
+                        <span className="text-muted-foreground">{item.value}%</span>
+                      </div>
+                      <div className="mt-2 h-2 rounded-full bg-slate-100">
+                        <div className="h-2 rounded-full bg-primary" style={{ width: `${item.value}%` }} />
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">{item.detail}</p>
+                    </div>
+                  ))}
+                  <div className="rounded-2xl border bg-blue-50/50 px-4 py-3 text-xs leading-6 text-slate-600">
+                    当前模拟 Coze / 外部知识库回调结果：已识别为 {draftUpload.category} 类资料，建议标签 {parsedTags.slice(0, 3).join("、") || "住宅、通风"}。
+                  </div>
+                  <Button className="w-full" onClick={() => setUploadStep(2)}>
+                    进入标签确认
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {uploadStep === 2 ? (
+              <div>
+                <p className="text-sm font-medium text-slate-900">3. 标签确认</p>
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium text-muted-foreground">规范版本</span>
+                      <input
+                        className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none"
+                        value={draftUpload.version}
+                        onChange={(event) => setDraftUpload((current) => ({ ...current, version: event.target.value }))}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-xs font-medium text-muted-foreground">专业分类</span>
+                      <select
+                        className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none"
+                        value={draftUpload.category}
+                        onChange={(event) => setDraftUpload((current) => ({ ...current, category: event.target.value as StandardLibraryDocument["category"] }))}
+                      >
+                        {["建筑", "规划", "景观", "市政", "暖通"].map((item) => (
+                          <option key={item} value={item}>{item}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-medium text-muted-foreground">业务标签</span>
+                    <input
+                      className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none"
+                      value={draftUpload.tags}
+                      onChange={(event) => setDraftUpload((current) => ({ ...current, tags: event.target.value }))}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-medium text-muted-foreground">资料摘要</span>
+                    <Textarea
+                      className="min-h-24 rounded-2xl border bg-slate-50 text-sm shadow-none focus-visible:ring-0"
+                      value={draftUpload.summary}
+                      onChange={(event) => setDraftUpload((current) => ({ ...current, summary: event.target.value }))}
+                    />
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {parsedTags.map((tag) => (
+                      <Badge key={tag} className="border-slate-200 bg-slate-50 text-slate-700">{tag}</Badge>
+                    ))}
+                  </div>
+                  <Button className="w-full" onClick={() => setUploadStep(3)}>
+                    确认并准备发布
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {uploadStep === 3 ? (
+              <div>
+                <p className="text-sm font-medium text-slate-900">4. 发布入库</p>
+                <div className="mt-4 space-y-4">
+                  <div className="rounded-2xl border bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">{draftUpload.fileName.replace(/\.(pdf|docx?|csv)$/i, "")}</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <DetailStat label="版本" value={draftUpload.version} />
+                      <DetailStat label="分类" value={draftUpload.category} />
+                      <DetailStat label="建议范围" value={draftUpload.publishScope} />
+                      <DetailStat label="预计片段数" value="128" />
+                    </div>
+                  </div>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-medium text-muted-foreground">发布范围</span>
+                    <select
+                      className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none"
+                      value={draftUpload.publishScope}
+                      onChange={(event) => setDraftUpload((current) => ({ ...current, publishScope: event.target.value }))}
+                    >
+                      {["全库", "企业库", "指定规范范围"].map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-800">
+                    发布后，这份资料会进入知识库可检索范围；当前原型仅更新前端状态，不会真实写入外部知识库。
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      publishDraftDocument();
+                    }}
+                  >
+                    发布到资料库
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
