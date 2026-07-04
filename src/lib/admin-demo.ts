@@ -56,3 +56,30 @@ export const qualityMetrics = [
   { label: "有帮助反馈率", value: "82%" },
 ] as const;
 
+export const auditMetrics = [
+  { label: "多路召回命中率", value: "88%" },
+  { label: "重排后首条命中率", value: "79%" },
+  { label: "引用字段完整率", value: "91%" },
+  { label: "页码可定位率", value: "74%" },
+] as const;
+
+export const auditItems = [
+  {
+    title: "住宅设计规范",
+    issue: "部分回答缺少条款号，仅返回规范名称与摘要片段。",
+    severity: "中",
+    action: "优先补齐 Coze 返回字段映射，确保 clause 写入 citations。",
+  },
+  {
+    title: "建筑设计防火规范",
+    issue: "深度模式偶发多条引用版本不一致，存在人工复核风险。",
+    severity: "高",
+    action: "补版本冲突标记逻辑，并在答案中显著提示版本差异。",
+  },
+  {
+    title: "住宅建筑规范",
+    issue: "已能定位页码，但尚未支持段落级锚点与高亮。",
+    severity: "中",
+    action: "后续推动知识库返回 paragraphId / anchor 信息。",
+  },
+] as const;

@@ -35,6 +35,7 @@ export default async function AdminPage({
               { href: "/admin/evals", label: "评测系统", icon: FlaskConical, desc: "查看评测集与最近回归结果" },
               { href: "/admin/feedback", label: "反馈工单", icon: MessageSquareWarning, desc: "查看问题来源与处理优先级" },
               { href: "/admin/agent", label: "Agent 配置", icon: Bot, desc: "查看工作流接入与审计位" },
+              { href: "/admin/audit", label: "质量审计", icon: ClipboardList, desc: "查看 RAG / 引用质量与缺陷项" },
             ].map((item) => {
               const Icon = item.icon;
               return (

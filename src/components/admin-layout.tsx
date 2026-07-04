@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Bot, ClipboardList, FlaskConical, Library, MessageSquareWarning, Settings, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type AdminSection = "overview" | "qa" | "evals" | "feedback" | "agent";
+type AdminSection = "overview" | "qa" | "evals" | "feedback" | "agent" | "audit";
 
 const sections: Array<{
   key: AdminSection;
@@ -15,6 +15,7 @@ const sections: Array<{
   { key: "evals", label: "评测系统", href: "/admin/evals", icon: FlaskConical },
   { key: "feedback", label: "反馈工单", href: "/admin/feedback", icon: MessageSquareWarning },
   { key: "agent", label: "Agent 配置", href: "/admin/agent", icon: Bot },
+  { key: "audit", label: "质量审计", href: "/admin/audit", icon: ShieldCheck },
 ];
 
 export function AdminShell({
@@ -95,4 +96,3 @@ export function AdminShell({
     </main>
   );
 }
-
