@@ -104,6 +104,40 @@ function canPreviewPdf(citation?: Citation) {
   return /\.pdf(?:$|[?#])/i.test(citation.sourceUrl);
 }
 
+function getCitationLocateKeywords(citation?: Citation) {
+  if (!citation) return [];
+
+  const candidates = [
+    citation.clause ?? "",
+    ...citation.excerpt
+      .split(/[\n，。；：、（）()]/)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 4 && item.length <= 18),
+  ];
+
+  return [...new Set(candidates)]
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function buildCitationLocateHint(citation?: Citation) {
+  if (!citation) return "";
+
+  const parts = [
+    `规范：${citation.documentTitle}`,
+    citation.version ? `版本：${citation.version}` : "",
+    citation.clause ? `条款：${citation.clause}` : "",
+    getPdfPageFromCitation(citation) ? `页码：第 ${getPdfPageFromCitation(citation)} 页` : "",
+  ].filter(Boolean);
+
+  const keywords = getCitationLocateKeywords(citation);
+  if (keywords.length > 0) {
+    parts.push(`检索词：${keywords.join(" / ")}`);
+  }
+
+  return parts.join("\n");
+}
+
 export function ChatShell({
   initialConversations,
   previewMode = false,
@@ -791,7 +825,7 @@ function Inspector({
   const citation = citations[selectedCitation];
 
   return (
-    <aside className={cn("fixed inset-y-0 end-0 z-50 flex w-84 shrink-0 flex-col border-s bg-[#f8fafb] shadow-xl transition-transform lg:static lg:z-auto lg:translate-x-0 lg:shadow-none", open ? "translate-x-0" : "translate-x-full")}>
+    <aside className={cn("fixed inset-y-0 end-0 z-50 flex w-full shrink-0 flex-col border-s bg-[#f8fafb] shadow-xl transition-transform sm:w-[26rem] lg:static lg:z-auto lg:w-84 lg:translate-x-0 lg:shadow-none", open ? "translate-x-0" : "translate-x-full")}>
       <div className="flex h-16 shrink-0 items-center border-b bg-white px-4">
         <div className="grid flex-1 grid-cols-2 rounded-lg bg-secondary p-1 text-xs">
           <button className={cn("rounded-md px-3 py-1.5", tab === "sources" && "bg-white font-medium text-primary shadow-sm")} onClick={() => setTab("sources")}>
@@ -842,6 +876,7 @@ function SourcesPanel({
   setSelectedCitation: (index: number) => void;
 }) {
   const [sourceViewMode, setSourceViewMode] = useState<SourceViewMode>("excerpt");
+  const [copiedLocateHint, setCopiedLocateHint] = useState(false);
 
   if (!citation && relatedDocuments.length > 0) {
     return <RelatedDocuments documents={relatedDocuments} />;
@@ -860,6 +895,10 @@ function SourcesPanel({
       </div>
     );
   }
+
+  const pageNumber = getPdfPageFromCitation(citation);
+  const locateKeywords = getCitationLocateKeywords(citation);
+  const locateHint = buildCitationLocateHint(citation);
 
   return (
     <div>
@@ -885,7 +924,7 @@ function SourcesPanel({
       ) : null}
 
       <div className="rounded-xl border bg-white p-4 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="grid grid-cols-2 rounded-lg bg-secondary p-1 text-xs">
             <button
               className={cn("rounded-md px-3 py-1.5", sourceViewMode === "excerpt" && "bg-white font-medium text-primary shadow-sm")}
@@ -904,7 +943,7 @@ function SourcesPanel({
 
           {citation.sourceUrl ? (
             <a
-              className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-blue-50"
+              className="inline-flex items-center justify-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-blue-50"
               href={citation.sourceUrl}
               rel="noreferrer"
               target="_blank"
@@ -920,10 +959,16 @@ function SourcesPanel({
             <p className="text-sm font-semibold leading-5">{citation.documentTitle}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {citation.version ?? "版本待核实"} · {citation.clause ?? "条款待核实"}
-              {getPdfPageFromCitation(citation) ? ` · PDF 第 ${getPdfPageFromCitation(citation)} 页` : ""}
+              {pageNumber ? ` · PDF 第 ${pageNumber} 页` : ""}
             </p>
           </div>
           <FileCheck2 className="size-5 shrink-0 text-primary" />
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {pageNumber ? <Badge className="border-slate-200 bg-slate-50 text-slate-700">PDF 第 {pageNumber} 页</Badge> : null}
+          {citation.clause ? <Badge className="border-slate-200 bg-slate-50 text-slate-700">{citation.clause}</Badge> : null}
+          {citation.version ? <Badge className="border-slate-200 bg-slate-50 text-slate-700">{citation.version}</Badge> : null}
         </div>
 
         <div className="my-4 h-px bg-border" />
@@ -935,15 +980,49 @@ function SourcesPanel({
             </blockquote>
 
             <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] leading-5 text-muted-foreground">
-              {getPdfPageFromCitation(citation)
-                ? `当前可直接定位到 PDF 第 ${getPdfPageFromCitation(citation)} 页。段落级高亮仍依赖知识库返回更精确的锚点信息。`
+              {pageNumber
+                ? `当前可直接定位到 PDF 第 ${pageNumber} 页。段落级高亮仍依赖知识库返回更精确的锚点信息。`
                 : "当前引用可展示原文片段，但尚未拿到可靠页码，因此只能打开整份 PDF 供人工核对。"}
+            </div>
+
+            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-800">PDF 定位提示</p>
+                  <p className="mt-1 text-[11px] leading-5 text-slate-600">
+                    {pageNumber
+                      ? `建议先跳到第 ${pageNumber} 页，再结合条款号或下方检索词在页内人工核对。`
+                      : "当前还没有可靠页码，建议先打开 PDF，再使用条款号或下方检索词进行全文搜索。"}
+                  </p>
+                </div>
+                <button
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border bg-white px-2.5 py-1.5 text-[11px] font-medium text-primary hover:bg-blue-50"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(locateHint);
+                    setCopiedLocateHint(true);
+                    window.setTimeout(() => setCopiedLocateHint(false), 1400);
+                  }}
+                >
+                  {copiedLocateHint ? <Check className="size-3.5 text-emerald-600" /> : <Clipboard className="size-3.5" />}
+                  {copiedLocateHint ? "已复制" : "复制提示"}
+                </button>
+              </div>
+
+              {locateKeywords.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {locateKeywords.map((keyword) => (
+                    <span key={keyword} className="rounded-full border bg-white px-2.5 py-1 text-[11px] text-slate-600">
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             {citation.sourceUrl ? (
               <a className="mt-4 flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium text-primary hover:bg-blue-50" href={citation.sourceUrl} rel="noreferrer" target="_blank">
                 <ExternalLink className="size-3.5" />
-                {getPdfPageFromCitation(citation) ? `定位到 PDF 第 ${getPdfPageFromCitation(citation)} 页` : "查看原文 PDF"}
+                {pageNumber ? `定位到 PDF 第 ${pageNumber} 页` : "查看原文 PDF"}
               </a>
             ) : (
               <div className="mt-4 rounded-lg bg-secondary px-3 py-2 text-[11px] leading-5 text-muted-foreground">
@@ -953,11 +1032,11 @@ function SourcesPanel({
           </>
         ) : canPreviewPdf(citation) ? (
           <div>
-            <div className="mb-3 flex items-center justify-between rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-2 text-[11px] text-slate-600">
+            <div className="mb-3 flex flex-col gap-2 rounded-lg border border-blue-100 bg-blue-50/70 px-3 py-2 text-[11px] text-slate-600 sm:flex-row sm:items-center sm:justify-between">
               <span className="inline-flex items-center gap-1.5">
                 <Boxes className="size-3.5 text-primary" />
-                {getPdfPageFromCitation(citation)
-                  ? `已定位到 PDF 第 ${getPdfPageFromCitation(citation)} 页`
+                {pageNumber
+                  ? `已定位到 PDF 第 ${pageNumber} 页`
                   : "当前仅能预览整份 PDF，未拿到可靠页码"}
               </span>
               <span className="text-muted-foreground">段落高亮待后续锚点增强</span>
@@ -965,10 +1044,16 @@ function SourcesPanel({
 
             <div className="overflow-hidden rounded-xl border bg-slate-100">
               <iframe
-                className="h-[460px] w-full bg-white"
+                className="h-[58vh] min-h-[360px] w-full bg-white lg:h-[460px]"
                 src={citation.sourceUrl}
                 title={`${citation.documentTitle} PDF 预览`}
               />
+            </div>
+
+            <div className="mt-3 rounded-lg border border-dashed px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+              如果页内仍不好找，优先比对条款号
+              {citation.clause ? `“${citation.clause}”` : ""}
+              {locateKeywords.length > 0 ? `，或搜索：${locateKeywords.join(" / ")}` : "。"}
             </div>
           </div>
         ) : (
