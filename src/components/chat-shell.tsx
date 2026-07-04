@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import {
@@ -234,7 +235,7 @@ export function ChatShell({
       <aside className={cn("fixed inset-y-0 start-0 z-50 flex w-72 flex-col border-e bg-[#f8fafb] transition-transform lg:static lg:z-auto lg:translate-x-0", sidebarOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex h-16 items-center justify-between border-b bg-white px-4">
           <div>
-            <p className="text-sm font-semibold text-slate-900">元规工作台</p>
+            <p className="text-sm font-semibold text-slate-900">规智工作台</p>
             <p className="text-xs text-muted-foreground">NormMind Workspace</p>
           </div>
           <Button aria-label="关闭会话侧栏" className="lg:hidden" size="icon" variant="ghost" onClick={() => setSidebarOpen(false)}>
@@ -339,6 +340,7 @@ function Workspace({
     messages: NormMindUIMessage[];
   }) => void;
 }) {
+  const pathname = usePathname();
   const router = useRouter();
   const [mode, setMode] = useState<ChatMode>("standard");
   const [scope, setScope] = useState("all");
@@ -486,7 +488,7 @@ function Workspace({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-primary">NormMind</span>
-            <h1 className="truncate text-sm font-semibold text-slate-900">元规 · 规范智能问答工作台</h1>
+            <h1 className="truncate text-sm font-semibold text-slate-900">规智 · 规范智能问答工作台</h1>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">面向建筑、规划、景观设计的规范检索与引用追溯</p>
         </div>
@@ -506,6 +508,18 @@ function Workspace({
               规范资料库
             </button>
             <div className="ms-auto flex items-center gap-2">
+              <Link
+                className={cn("hidden rounded-full px-3 py-1.5 text-xs font-medium md:inline-flex", pathname === "/library" ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}
+                href={previewMode ? "/library?preview=1" : "/library"}
+              >
+                资料库独立页
+              </Link>
+              <Link
+                className={cn("hidden rounded-full px-3 py-1.5 text-xs font-medium md:inline-flex", pathname === "/settings" ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}
+                href={previewMode ? "/settings?preview=1" : "/settings"}
+              >
+                账户设置
+              </Link>
               <Button size="sm" variant="ghost" onClick={signOut}>
                 <User className="me-2 size-4" />
                 {previewMode ? "体验模式" : "退出"}
@@ -1150,13 +1164,16 @@ function RelatedDocuments({ documents }: { documents: RelatedStandardDocument[] 
   );
 }
 
-function LibraryView({
+export function LibraryView({
   uploadStep,
   setUploadStep,
 }: {
-  uploadStep: number;
-  setUploadStep: (value: number) => void;
+  uploadStep?: number;
+  setUploadStep?: (value: number) => void;
 }) {
+  const [internalUploadStep, setInternalUploadStep] = useState(0);
+  const currentUploadStep = uploadStep ?? internalUploadStep;
+  const updateUploadStep = setUploadStep ?? setInternalUploadStep;
   const initialDocuments = useMemo(() => getStandardLibraryDocuments(), []);
   const [documents, setDocuments] = useState<StandardLibraryDocument[]>(initialDocuments);
   const [query, setQuery] = useState("");
@@ -1234,7 +1251,7 @@ function LibraryView({
             <p className="text-lg font-semibold text-slate-900">规范资料库</p>
             <p className="mt-1 text-sm text-muted-foreground">支持按规范名称、专业分类、状态和标签浏览资料，并查看详情。</p>
           </div>
-          <Button onClick={() => setUploadStep(0)}>
+          <Button onClick={() => updateUploadStep(0)}>
             <Upload className="me-2 size-4" />
             上传资料
           </Button>
@@ -1390,8 +1407,8 @@ function LibraryView({
 
           <div className="mt-6 space-y-3">
             {["上传文件", "智能解析", "标签确认", "发布入库"].map((step, index) => (
-              <button key={step} className={cn("flex w-full items-center gap-3 rounded-2xl border p-4 text-left", uploadStep === index ? "border-primary bg-blue-50/50" : "bg-white")} onClick={() => setUploadStep(index)}>
-                <div className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold", uploadStep >= index ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}>
+              <button key={step} className={cn("flex w-full items-center gap-3 rounded-2xl border p-4 text-left", currentUploadStep === index ? "border-primary bg-blue-50/50" : "bg-white")} onClick={() => updateUploadStep(index)}>
+                <div className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold", currentUploadStep >= index ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}>
                   {index + 1}
                 </div>
                 <div>
@@ -1405,12 +1422,12 @@ function LibraryView({
           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-medium text-slate-900">当前步骤说明</p>
             <p className="mt-2 text-xs leading-6 text-muted-foreground">
-              {uploadFlowNotes[uploadStep as 0 | 1 | 2 | 3]}
+              {uploadFlowNotes[currentUploadStep as 0 | 1 | 2 | 3]}
             </p>
           </div>
 
           <div className="mt-5 rounded-2xl border bg-white p-4">
-            {uploadStep === 0 ? (
+            {currentUploadStep === 0 ? (
               <div>
                 <p className="text-sm font-medium text-slate-900">1. 上传文件</p>
                 <div className="mt-4 space-y-4">
@@ -1451,14 +1468,14 @@ function LibraryView({
                   <div className="rounded-2xl border border-dashed bg-slate-50 px-4 py-4 text-xs leading-6 text-muted-foreground">
                     当前为前端原型：这里模拟上传成功，后续会接入真实文件存储、解析队列和权限控制。
                   </div>
-                  <Button className="w-full" onClick={() => setUploadStep(1)}>
+                  <Button className="w-full" onClick={() => updateUploadStep(1)}>
                     开始解析
                   </Button>
                 </div>
               </div>
             ) : null}
 
-            {uploadStep === 1 ? (
+            {currentUploadStep === 1 ? (
               <div>
                 <p className="text-sm font-medium text-slate-900">2. 智能解析</p>
                 <div className="mt-4 space-y-4">
@@ -1481,14 +1498,14 @@ function LibraryView({
                   <div className="rounded-2xl border bg-blue-50/50 px-4 py-3 text-xs leading-6 text-slate-600">
                     当前模拟 Coze / 外部知识库回调结果：已识别为 {draftUpload.category} 类资料，建议标签 {parsedTags.slice(0, 3).join("、") || "住宅、通风"}。
                   </div>
-                  <Button className="w-full" onClick={() => setUploadStep(2)}>
+                  <Button className="w-full" onClick={() => updateUploadStep(2)}>
                     进入标签确认
                   </Button>
                 </div>
               </div>
             ) : null}
 
-            {uploadStep === 2 ? (
+            {currentUploadStep === 2 ? (
               <div>
                 <p className="text-sm font-medium text-slate-900">3. 标签确认</p>
                 <div className="mt-4 space-y-4">
@@ -1535,14 +1552,14 @@ function LibraryView({
                       <Badge key={tag} className="border-slate-200 bg-slate-50 text-slate-700">{tag}</Badge>
                     ))}
                   </div>
-                  <Button className="w-full" onClick={() => setUploadStep(3)}>
+                  <Button className="w-full" onClick={() => updateUploadStep(3)}>
                     确认并准备发布
                   </Button>
                 </div>
               </div>
             ) : null}
 
-            {uploadStep === 3 ? (
+            {currentUploadStep === 3 ? (
               <div>
                 <p className="text-sm font-medium text-slate-900">4. 发布入库</p>
                 <div className="mt-4 space-y-4">
@@ -1588,11 +1605,123 @@ function LibraryView({
   );
 }
 
+export function AccountSettingsView({
+  previewMode = false,
+}: {
+  previewMode?: boolean;
+}) {
+  return (
+    <div className="grid gap-6 p-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="space-y-6">
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <User className="size-4 text-primary" />
+            <p className="text-lg font-semibold">账户设置</p>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            管理登录方式、默认问答偏好和结果提示策略。当前为 MVP 骨架，后续会接入真实用户资料与组织权限。
+          </p>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <DetailStat label="账户状态" value={previewMode ? "体验模式" : "已登录用户"} />
+            <DetailStat label="默认语言" value="中文" />
+            <DetailStat label="默认模式" value="快速问答" />
+            <DetailStat label="默认检索范围" value="全库" />
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <p className="text-base font-semibold text-slate-900">登录方式</p>
+          <div className="mt-4 space-y-3">
+            {[
+              ["邮箱登录", "已开放，当前推荐作为正式登录方式。"],
+              ["手机号登录", "短信服务待配置，开放后可用于验证码登录。"],
+              ["微信登录", "OAuth 回调与应用配置待完成，后续开放。"],
+            ].map(([title, description], index) => (
+              <div key={title} className="rounded-2xl border bg-slate-50 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-slate-900">{title}</p>
+                  <Badge className={index === 0 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
+                    {index === 0 ? "已开放" : "即将开放"}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Settings className="size-4 text-primary" />
+            <p className="text-lg font-semibold">问答偏好</p>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <SettingRow
+              title="默认展示引用原文"
+              description="回答生成后自动打开右侧引用面板，适合审阅型工作流。"
+              status="已启用"
+            />
+            <SettingRow
+              title="证据不足强提醒"
+              description="当引用不足时，显著提示不可直接作为设计或审查结论。"
+              status="已启用"
+            />
+            <SettingRow
+              title="深度检索状态展示"
+              description="仅展示任务阶段，不暴露模型内部思维链。"
+              status="已启用"
+            />
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <p className="text-base font-semibold text-slate-900">后续预留</p>
+          <div className="mt-4 space-y-3 text-sm leading-6 text-muted-foreground">
+            <div className="rounded-2xl border border-dashed px-4 py-3">
+              企业组织与成员权限
+            </div>
+            <div className="rounded-2xl border border-dashed px-4 py-3">
+              收藏夹、报告导出与会话搜索
+            </div>
+            <div className="rounded-2xl border border-dashed px-4 py-3">
+              个人常用规范范围与企业知识库偏好
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DetailStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border bg-slate-50 px-4 py-3">
       <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function SettingRow({
+  title,
+  description,
+  status,
+}: {
+  title: string;
+  description: string;
+  status: string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-slate-50 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-slate-900">{title}</p>
+        <Badge className="border-blue-200 bg-blue-50 text-blue-700">{status}</Badge>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">{description}</p>
     </div>
   );
 }

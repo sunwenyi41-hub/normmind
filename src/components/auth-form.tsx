@@ -26,6 +26,10 @@ import {
 import { Input } from "@/components/ui/input";
 
 type LoginMethod = "email" | "phone";
+type CapabilityStatus = "available" | "coming_soon";
+
+const phoneAuthStatus: CapabilityStatus = "coming_soon";
+const wechatAuthStatus: CapabilityStatus = "coming_soon";
 
 function normalizeChinesePhone(value: string) {
   const compact = value.replace(/[\s-]/g, "");
@@ -51,6 +55,10 @@ export function AuthForm({
   const [message, setMessage] = useState<string | null>(initialMessage);
 
   function selectMethod(nextMethod: LoginMethod) {
+    if (nextMethod === "phone" && phoneAuthStatus !== "available") {
+      setMessage("手机号登录正在配置短信服务，当前版本暂未开放。");
+      return;
+    }
     setMethod(nextMethod);
     setMessage(null);
     setOtpSent(false);
@@ -88,6 +96,10 @@ export function AuthForm({
 
   async function submitPhone(event: React.FormEvent) {
     event.preventDefault();
+    if (phoneAuthStatus !== "available") {
+      setMessage("手机号登录正在配置短信服务，当前版本暂未开放。");
+      return;
+    }
     setLoading(true);
     setMessage(null);
     const normalizedPhone = normalizeChinesePhone(phone);
@@ -116,6 +128,10 @@ export function AuthForm({
   }
 
   async function signInWithWeChat() {
+    if (wechatAuthStatus !== "available") {
+      setMessage("微信登录正在配置企业微信 / OAuth 回调，当前版本暂未开放。");
+      return;
+    }
     setLoading(true);
     setMessage(null);
     try {
@@ -211,10 +227,12 @@ export function AuthForm({
                   method === "phone"
                     ? "bg-white font-medium text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
+                  phoneAuthStatus !== "available" && "opacity-60",
                 )}
                 onClick={() => selectMethod("phone")}
               >
                 <Phone className="size-4" />手机
+                {phoneAuthStatus !== "available" ? <span className="text-[10px]">即将开放</span> : null}
               </button>
             </div>
 
@@ -265,6 +283,11 @@ export function AuthForm({
               </form>
             ) : (
               <form className="space-y-4" onSubmit={submitPhone}>
+                {phoneAuthStatus !== "available" ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800">
+                    当前仅开放邮箱登录。手机号登录会在短信服务配置完成后开放。
+                  </div>
+                ) : null}
                 <label className="block space-y-2 text-sm font-medium">
                   手机号
                   <div className="relative">
@@ -277,7 +300,7 @@ export function AuthForm({
                       value={phone}
                       onChange={(event) => setPhone(event.target.value)}
                       placeholder="中国大陆手机号或 +国家码"
-                      disabled={otpSent}
+                      disabled={otpSent || phoneAuthStatus !== "available"}
                     />
                   </div>
                 </label>
@@ -295,11 +318,12 @@ export function AuthForm({
                         setOtp(event.target.value.replace(/\D/g, ""))
                       }
                       placeholder="输入 6 位验证码"
+                      disabled={phoneAuthStatus !== "available"}
                     />
                   </label>
                 )}
                 <StatusMessage message={message} />
-                <Button className="w-full" disabled={loading}>
+                <Button className="w-full" disabled={loading || phoneAuthStatus !== "available"}>
                   {loading ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : otpSent ? (
@@ -339,9 +363,25 @@ export function AuthForm({
                 >
                   <MessageCircle className="size-4 fill-[#07c160] text-[#07c160]" />
                   微信登录
+                  {wechatAuthStatus !== "available" ? <span className="ms-1 text-[10px] text-muted-foreground">即将开放</span> : null}
                 </Button>
+                {wechatAuthStatus !== "available" ? (
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    当前版本尚未完成微信 OAuth 配置，建议先使用邮箱登录。
+                  </p>
+                ) : null}
               </>
             )}
+
+            <Button
+              type="button"
+              className="mt-5 w-full"
+              variant="secondary"
+              onClick={() => router.push("/?preview=1")}
+            >
+              进入工作台预览
+              <ArrowRight className="size-4" />
+            </Button>
 
             {method === "email" && (
               <button

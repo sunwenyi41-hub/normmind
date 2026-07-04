@@ -3,8 +3,15 @@ import { ChatShell } from "@/components/chat-shell";
 import { isPreviewMode } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function Home() {
-  if (isPreviewMode) return <ChatShell initialConversations={[]} previewMode />;
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string }>;
+}) {
+  const { preview } = await searchParams;
+  if (isPreviewMode || (process.env.NODE_ENV !== "production" && preview === "1")) {
+    return <ChatShell initialConversations={[]} previewMode />;
+  }
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=%2F");
