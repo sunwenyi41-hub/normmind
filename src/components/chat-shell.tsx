@@ -7,6 +7,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import {
   AlertCircle,
+  ArrowRight,
   BookOpen,
   Bookmark,
   Bot,
@@ -1171,6 +1172,7 @@ export function LibraryView({
   uploadStep?: number;
   setUploadStep?: (value: number) => void;
 }) {
+  const pathname = usePathname();
   const [internalUploadStep, setInternalUploadStep] = useState(0);
   const currentUploadStep = uploadStep ?? internalUploadStep;
   const updateUploadStep = setUploadStep ?? setInternalUploadStep;
@@ -1383,6 +1385,13 @@ export function LibraryView({
                   打开原文 PDF
                 </a>
                 <Button variant="outline">设为推荐范围</Button>
+                <Link
+                  className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium text-primary hover:bg-blue-50"
+                  href={pathname === "/library" ? `/library/${selectedDocument.id}` : `/library/${selectedDocument.id}?preview=1`}
+                >
+                  查看详情页
+                  <ArrowRight className="size-4" />
+                </Link>
               </div>
             </div>
           ) : (

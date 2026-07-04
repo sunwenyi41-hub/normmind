@@ -292,3 +292,7 @@ export function getStandardLibraryDocuments(): StandardLibraryDocument[] {
     };
   });
 }
+
+export function getStandardLibraryDocumentById(id: string) {
+  return getStandardLibraryDocuments().find((document) => document.id === id);
+}
