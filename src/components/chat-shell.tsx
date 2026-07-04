@@ -18,6 +18,7 @@ import {
   Download,
   ExternalLink,
   FileCheck2,
+  FileSearch,
   FolderOpen,
   History,
   Library,
@@ -50,7 +51,11 @@ import {
   getMessageText,
 } from "@/lib/chat";
 import { isDevelopment } from "@/lib/env";
-import { findRelatedStandardDocuments, type RelatedStandardDocument } from "@/lib/standard-documents";
+import {
+  findRelatedStandardDocuments,
+  getStandardLibraryDocuments,
+  type RelatedStandardDocument,
+} from "@/lib/standard-documents";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,12 +66,6 @@ const prompts = [
   "屋顶绿化的覆土厚度有哪些要求？",
   "无障碍坡道坡度与平台尺寸如何规定？",
   "比较两个规范对消防车道宽度的要求",
-];
-
-const libraryFiles = [
-  { title: "住宅建筑规范", code: "GB 50368—2005", status: "已发布", updated: "2026-06-28", chunks: 184 },
-  { title: "无障碍设计规范", code: "GB 50763—2012", status: "已发布", updated: "2026-06-26", chunks: 236 },
-  { title: "园林绿化工程项目规范", code: "GB 55014—2021", status: "解析中", updated: "刚刚", chunks: 0 },
 ];
 
 const messageMetadataSchema = z.object({
@@ -1072,13 +1071,37 @@ function LibraryView({
   uploadStep: number;
   setUploadStep: (value: number) => void;
 }) {
+  const documents = useMemo(() => getStandardLibraryDocuments(), []);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("全部");
+  const [statusFilter, setStatusFilter] = useState("全部");
+  const [selectedId, setSelectedId] = useState<string>(documents[0]?.id ?? "");
+
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((document) => {
+      const matchQuery =
+        query.trim().length === 0 ||
+        `${document.title} ${document.code} ${document.tags.join(" ")} ${document.summary}`
+          .toLowerCase()
+          .includes(query.trim().toLowerCase());
+      const matchCategory = category === "全部" || document.category === category;
+      const matchStatus = statusFilter === "全部" || document.status === statusFilter;
+      return matchQuery && matchCategory && matchStatus;
+    });
+  }, [category, documents, query, statusFilter]);
+
+  const selectedDocument =
+    filteredDocuments.find((document) => document.id === selectedId) ??
+    filteredDocuments[0] ??
+    null;
+
   return (
-    <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <div className="grid gap-6 p-6 xl:grid-cols-[1.15fr_0.85fr]">
       <div className="rounded-[28px] border bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-lg font-semibold text-slate-900">规范资料库</p>
-            <p className="mt-1 text-sm text-muted-foreground">上传、解析、标注、发布的资料管理原型</p>
+            <p className="mt-1 text-sm text-muted-foreground">支持按规范名称、专业分类、状态和标签浏览资料，并查看详情。</p>
           </div>
           <Button>
             <Upload className="me-2 size-4" />
@@ -1086,46 +1109,182 @@ function LibraryView({
           </Button>
         </div>
 
-        <div className="mt-6 space-y-3">
-          {libraryFiles.map((file) => (
-            <div key={file.code} className="rounded-2xl border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{file.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{file.code}</p>
-                </div>
-                <Badge className={file.status === "已发布" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}>
-                  {file.status}
-                </Badge>
-              </div>
-              <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                <span>更新时间：{file.updated}</span>
-                <span>解析片段：{file.chunks}</span>
-              </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-[1.3fr_0.7fr_0.7fr]">
+          <label className="block">
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">搜索规范</span>
+            <div className="flex items-center gap-2 rounded-2xl border bg-slate-50 px-3 py-2.5">
+              <FileSearch className="size-4 text-muted-foreground" />
+              <input
+                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                placeholder="名称 / 编号 / 标签"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
             </div>
-          ))}
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">专业分类</span>
+            <select className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none" value={category} onChange={(event) => setCategory(event.target.value)}>
+              {["全部", "建筑", "规划", "景观", "市政", "暖通"].map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-xs font-medium text-muted-foreground">资料状态</span>
+            <select className="w-full rounded-2xl border bg-slate-50 px-3 py-2.5 text-sm outline-none" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              {["全部", "已发布", "解析中", "待补标签"].map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-5 rounded-2xl border">
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">资料列表</p>
+              <p className="mt-1 text-xs text-muted-foreground">当前共 {filteredDocuments.length} 份资料</p>
+            </div>
+            <Badge className="border-blue-200 bg-blue-50 text-blue-700">资料库</Badge>
+          </div>
+
+          <div className="max-h-[560px] overflow-y-auto p-3">
+            <div className="space-y-3">
+              {filteredDocuments.length === 0 ? (
+                <div className="rounded-2xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                  没有匹配的规范资料，试试更换关键词或分类。
+                </div>
+              ) : null}
+
+              {filteredDocuments.map((document) => (
+                <button
+                  key={document.id}
+                  className={cn(
+                    "w-full rounded-2xl border p-4 text-left transition",
+                    selectedDocument?.id === document.id ? "border-primary bg-blue-50/50" : "bg-white hover:border-primary/30",
+                  )}
+                  onClick={() => setSelectedId(document.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">{document.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{document.code}</p>
+                    </div>
+                    <Badge className={
+                      document.status === "已发布"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : document.status === "解析中"
+                          ? "border-amber-200 bg-amber-50 text-amber-700"
+                          : "border-slate-200 bg-slate-100 text-slate-700"
+                    }>
+                      {document.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                    <span>{document.category}</span>
+                    <span>版本：{document.version}</span>
+                    <span>片段：{document.chunks}</span>
+                    <span>更新：{document.updatedAt}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-[28px] border bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Settings className="size-4 text-primary" />
-          <p className="text-lg font-semibold">入库流程</p>
+      <div className="space-y-6">
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <BookOpen className="size-4 text-primary" />
+            <p className="text-lg font-semibold">资料详情</p>
+          </div>
+
+          {selectedDocument ? (
+            <div className="mt-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">{selectedDocument.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{selectedDocument.code}</p>
+                </div>
+                <Badge className="border-blue-200 bg-blue-50 text-blue-700">{selectedDocument.category}</Badge>
+              </div>
+
+              <p className="mt-4 text-sm leading-7 text-slate-600">{selectedDocument.summary}</p>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <DetailStat label="版本" value={selectedDocument.version} />
+                <DetailStat label="状态" value={selectedDocument.status} />
+                <DetailStat label="更新时间" value={selectedDocument.updatedAt} />
+                <DetailStat label="知识片段" value={`${selectedDocument.chunks}`} />
+              </div>
+
+              <div className="mt-5">
+                <p className="text-xs font-medium text-muted-foreground">标签</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedDocument.tags.map((tag) => (
+                    <Badge key={tag} className="border-slate-200 bg-slate-50 text-slate-700">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium text-primary hover:bg-blue-50" href={selectedDocument.sourceUrl} rel="noreferrer" target="_blank">
+                  <ExternalLink className="size-4" />
+                  打开原文 PDF
+                </a>
+                <Button variant="outline">设为推荐范围</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+              暂无可查看的资料详情。
+            </div>
+          )}
         </div>
-        <div className="mt-6 space-y-3">
-          {["上传文件", "智能解析", "标签确认", "发布入库"].map((step, index) => (
-            <button key={step} className={cn("flex w-full items-center gap-3 rounded-2xl border p-4 text-left", uploadStep === index ? "border-primary bg-blue-50/50" : "bg-white")} onClick={() => setUploadStep(index)}>
-              <div className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold", uploadStep >= index ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}>
-                {index + 1}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-900">{step}</p>
-                <p className="mt-1 text-xs text-muted-foreground">用于演示资料从上传到可检索发布的最小闭环</p>
-              </div>
-            </button>
-          ))}
+
+        <div className="rounded-[28px] border bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Settings className="size-4 text-primary" />
+            <p className="text-lg font-semibold">入库流程</p>
+          </div>
+          <div className="mt-6 space-y-3">
+            {["上传文件", "智能解析", "标签确认", "发布入库"].map((step, index) => (
+              <button key={step} className={cn("flex w-full items-center gap-3 rounded-2xl border p-4 text-left", uploadStep === index ? "border-primary bg-blue-50/50" : "bg-white")} onClick={() => setUploadStep(index)}>
+                <div className={cn("grid size-8 place-items-center rounded-full text-xs font-semibold", uploadStep >= index ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}>
+                  {index + 1}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{step}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">用于演示资料从上传到可检索发布的最小闭环</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-medium text-slate-900">当前步骤说明</p>
+            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+              {{
+                0: "支持上传 PDF、Word、CSV 等规范资料，后续将接入真实存储与权限边界。",
+                1: "模拟 Coze / 外部知识库解析状态，后续可替换为真实任务队列与进度回调。",
+                2: "在标签确认阶段补齐专业分类、版本、生效状态和业务标签。",
+                3: "发布后进入知识库可检索范围，并可挂接企业库或指定规范范围。",
+              }[uploadStep as 0 | 1 | 2 | 3]}
+            </p>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DetailStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border bg-slate-50 px-4 py-3">
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
     </div>
   );
 }
