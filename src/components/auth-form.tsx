@@ -36,6 +36,30 @@ function normalizeChinesePhone(value: string) {
   return /^1\d{10}$/.test(compact) ? `+86${compact}` : compact;
 }
 
+function formatAuthError(error: unknown) {
+  const fallback = "操作失败，请稍后重试。";
+  if (!(error instanceof Error)) return fallback;
+
+  const message = error.message.toLowerCase();
+  if (message.includes("email rate limit exceeded") || message.includes("over_email_send_rate_limit")) {
+    return "注册邮件发送过于频繁，已触发邮件服务限制。请稍后再试，或联系管理员配置正式 SMTP 邮件服务。";
+  }
+  if (message.includes("email address not authorized")) {
+    return "当前邮箱未被 Supabase 默认邮件服务授权。请配置正式 SMTP 后再注册。";
+  }
+  if (message.includes("user already registered")) {
+    return "该邮箱已注册，请直接登录。";
+  }
+  if (message.includes("invalid login credentials")) {
+    return "邮箱或密码不正确。";
+  }
+  if (message.includes("password") && message.includes("characters")) {
+    return "密码强度不足，请使用至少 8 位密码。";
+  }
+
+  return error.message || fallback;
+}
+
 export function AuthForm({
   initialMessage = null,
   redirectTo = "/",
@@ -88,7 +112,7 @@ export function AuthForm({
         router.refresh();
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "操作失败，请稍后重试");
+      setMessage(formatAuthError(error));
     } finally {
       setLoading(false);
     }
@@ -121,7 +145,7 @@ export function AuthForm({
         router.refresh();
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "操作失败，请稍后重试");
+      setMessage(formatAuthError(error));
     } finally {
       setLoading(false);
     }
@@ -144,11 +168,7 @@ export function AuthForm({
       });
       if (error) throw error;
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "微信登录尚未配置，请联系管理员",
-      );
+      setMessage(formatAuthError(error));
       setLoading(false);
     }
   }
