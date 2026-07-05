@@ -20,6 +20,16 @@ npm run dev
 
 未配置 Supabase 时，开发环境会自动进入演示模式；若已配置 Supabase 与 Coze，问答将调用真实 Agent 链路并持久化会话。生产环境不会启用演示模式。
 
+### 预览入口
+
+- 登录页预览：`/login?preview=1`
+- 工作台预览：`/?preview=1`
+- 资料库预览：`/library?preview=1`
+- 账户设置预览：`/settings?preview=1`
+- 管理后台预览：`/admin?preview=1`
+
+预览模式只用于查看界面与演示产品结构，不应视为真实权限或真实业务数据验证结果。
+
 ### 开发测试数据
 
 - 登录后可在左侧边栏点击“生成测试数据”，一键写入 3 组示例会话到当前账号
@@ -39,6 +49,28 @@ npm run dev
 - 微信登录：在 Auth → Providers 新建自定义 OAuth2 提供方，标识符使用 `custom:wechat`，填写微信开放平台的授权、Token、用户信息端点及 Client ID/Secret，并将 Supabase 提供的 Callback URL 回填到微信开放平台。
 
 迁移为三个公开表启用了 RLS。客户端仅使用 publishable key；不要把 secret/service-role key 放入浏览器环境变量。
+
+## 环境变量说明
+
+最小必填变量：
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL`
+- `COZE_API_TOKEN`
+- `COZE_BOT_ID`
+
+可选但推荐：
+
+- `LANGSMITH_TRACING`
+- `LANGSMITH_API_KEY`
+- `LANGSMITH_PROJECT`
+
+当前 `手机号登录` 与 `微信登录` 默认在 UI 中以“即将开放”提示呈现。若要正式启用：
+
+- 手机号登录：需在 Supabase Auth 中开启 Phone，并完成短信服务配置
+- 微信登录：需在 Supabase Auth 中配置 `custom:wechat` OAuth
 
 ## Coze 工作流契约
 
@@ -91,6 +123,16 @@ npm run build
 2. 在 Vercel 为 Development、Preview、Production 分别配置 `.env.example` 中的变量，避免 Preview 使用生产数据库。
 3. 推荐先升级 CLI：`npm i -g vercel@latest`。
 4. 可用 `vercel env pull .env.local --yes` 拉取开发变量，再运行 `npm run build`。
+
+推荐上线顺序：
+
+1. 先验证 `/?preview=1`、`/library?preview=1`、`/admin?preview=1`
+2. 再验证真实登录链路
+3. 最后验证 Coze 真实问答与引用追溯
+
+完整上线清单见：
+
+- [docs/release-checklist.md](/Users/mirror/Documents/规范智能知识问答 Agent/docs/release-checklist.md)
 
 ## 安全边界
 
