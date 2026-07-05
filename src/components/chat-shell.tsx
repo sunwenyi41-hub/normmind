@@ -113,6 +113,19 @@ function canPreviewPdf(citation?: Citation) {
   return /\.pdf(?:$|[?#])/i.test(citation.sourceUrl);
 }
 
+function normalizeTransportErrorMessage(message?: string) {
+  if (!message) return "服务暂时不可用";
+
+  try {
+    const parsed = JSON.parse(message) as { error?: string };
+    if (parsed?.error) return parsed.error;
+  } catch {
+    // ignore malformed JSON-like strings
+  }
+
+  return message;
+}
+
 function getCitationLocateKeywords(citation?: Citation) {
   if (!citation) return [];
 
@@ -391,6 +404,7 @@ function Workspace({
     messages: initialMessages,
     messageMetadataSchema,
     onError: (error) => {
+      const errorMessage = normalizeTransportErrorMessage(error.message);
       const failureMessage: NormMindUIMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -401,7 +415,7 @@ function Workspace({
         parts: [
           {
             type: "text",
-            text: `${error.message || "服务暂时不可用"}。你的问题已保留，请稍后重试。`,
+            text: `${errorMessage || "服务暂时不可用"}。你的问题已保留，请稍后重试。`,
           },
         ],
       };
@@ -468,6 +482,87 @@ function Workspace({
     setView("chat");
     setInspectorTab("process");
     setInspectorOpen(true);
+
+    if (previewMode) {
+      const previewLibraryDocs = getStandardLibraryDocuments();
+      const matchedDocument =
+        previewLibraryDocs.find((document) =>
+          `${document.title} ${document.code} ${document.tags.join(" ")} ${document.summary}`
+            .toLowerCase()
+            .includes(text.toLowerCase()),
+        ) ?? previewLibraryDocs[0];
+
+      const previewCitations: Citation[] = matchedDocument
+        ? [
+          {
+            documentTitle: matchedDocument.title,
+            version: matchedDocument.version,
+            clause: "演示条款",
+            excerpt: `这是工作台预览模式下的演示引用。当前问题“${text}”在正式模式中会调用真实 Coze Agent，并返回可核验的规范片段、版本与条款信息。`,
+            sourceUrl: matchedDocument.sourceUrl,
+          },
+        ]
+        : [];
+
+      const traceId = `preview-${crypto.randomUUID()}`;
+
+      const userMessage: NormMindUIMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        metadata: {
+          mode,
+          scope,
+        },
+        parts: [{ type: "text", text }],
+      };
+
+      const assistantMessage: NormMindUIMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        metadata: {
+          mode,
+          status: "completed",
+          citations: previewCitations,
+          traceId,
+          latencyMs: 1200,
+          scope,
+          delivery: "coze_workflow_fallback",
+        },
+        parts: [
+          {
+            type: "text",
+            text:
+              `这是预览模式下的演示回答。\n\n` +
+              `你的问题是：${text}\n\n` +
+              `当前页面不会调用真实登录态、Supabase 持久化或 Coze 知识检索，而是用来展示完整的工作台交互效果。若要查看真实问答结果，请使用邮箱登录后测试。`,
+          },
+          {
+            type: "data-answerMeta",
+            data: {
+              mode,
+              status: "completed",
+              citations: previewCitations,
+              traceId,
+              latencyMs: 1200,
+              delivery: "coze_workflow_fallback",
+            },
+          },
+        ],
+      };
+
+      setMessages((current) => {
+        const next = [...current, userMessage, assistantMessage];
+        onConversationPersist({
+          id: conversationId,
+          title: getMessageText(next.find((message) => message.role === "user")) || "新会话",
+          messages: next,
+        });
+        return next;
+      });
+
+      setInspectorTab("sources");
+      return;
+    }
 
     await sendMessage({
       text,
