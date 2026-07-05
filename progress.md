@@ -45,6 +45,8 @@ TODO LIST
 
 完成说明
 
+- 已完成真实反馈工单读取与状态流转代码，并修复 `messages_json` 快照模式下的反馈关联。
+- 已补 QA 样本、评测记录表、RLS 策略、测试数据及后台真实数据页面。
 - 已完成会话创建 / 续问 / 删除 / 标题更新的一体化改造。
 - 已将问答链路切换为 AI SDK `UIMessage[]` 持久化模型，并兼容旧消息结构回读。
 - 已统一 Coze 的完成、证据不足、失败与兜底 fallback 行为。
@@ -203,6 +205,8 @@ TODO LIST
 
 完成说明
 
+- 已补齐 `admin-and-quality-ops` Speckit SDD 单元，后续后台开发以该单元的 `tasks.md` 追踪。
+- 已增加服务端管理员邮箱 / 受信任角色校验，普通用户无法看到入口或直接访问后台路由。
 - 已补独立 `/admin` 管理后台路由，支持正式模式与预览模式访问。
 - 已搭建最小后台骨架，覆盖 QA 样本管理、评测结果查看、用户反馈与问题工单列表。
 - 已补 Agent 配置说明区块，用于承接普通模式 / 深度模式工作流与后续 RAG 审计信息。
@@ -212,8 +216,8 @@ TODO LIST
 
 遗留事项
 
-- 当前后台仍为前端演示骨架，尚未接入真实管理员权限、评测结果表或反馈数据聚合。
-- 仍需补真实样本编辑 / 执行能力，以及跨“反馈 / 样本 / 评测 / 审计”联动。
+- 管理员权限边界和真实数据代码已接入；还需在远程 Supabase 应用迁移并完成越权回归。
+- QA 样本已支持新增，后续版本再补评测自动执行与跨模块联动。
 
 ---
 
@@ -228,7 +232,7 @@ TODO LIST
 TODO LIST
 
 - [x] 清理并补齐 README、环境变量示例和部署说明
-- [ ] 校验本地、Preview、Production 环境变量配置
+- [x] 校验本地、Preview、Production 环境变量配置
 - [ ] 配置并验证 Vercel Preview / Production 部署
 - [x] 准备测试账号、测试数据和上线检查清单
 - [ ] 跑通登录、问答、历史、引用、反馈全链路回归
@@ -246,10 +250,13 @@ TODO LIST
 - 已补充 `README.md`，明确预览入口、环境变量说明、登录能力状态与部署顺序建议。
 - 已补充 `docs/release-checklist.md`，覆盖环境变量矩阵、测试账号、核心链路回归、RLS 校验、安全边界与回滚建议。
 - 已同步更新 `.env.example` 与 `AGENTS.md`，使阶段 6 的部署文档与协作要求可追踪。
+- 已升级 Vercel CLI 至 54.20.1，并将现有必需环境变量同步到 Development / Preview / Production。
+- 已完成 Vercel Production 首次部署：`https://normmind.vercel.app`，状态 Ready，线上首页健康检查通过。
 
 遗留事项
 
-- 尚未完成真实 Vercel Preview / Production 环境联调与部署验证。
+- Production 已上线；尚未建立 GitHub PR 自动 Preview 流程。
+- GitHub remote 尚未建立；Supabase / GitHub 连接器令牌过期，需重新登录后完成迁移、回调域名与推送。
 - 尚未完成真实登录、问答、历史、引用、反馈链路的上线前回归记录。
 - 尚未补充 Production 级管理员权限与后台真实数据联动的上线说明。
 

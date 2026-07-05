@@ -7,9 +7,9 @@
 ### Vercel 项目
 
 - [ ] GitHub 仓库已连接 Vercel
-- [ ] `main` 分支部署 Production
+- [x] `main` 当前工作树已通过 Vercel CLI 首次部署 Production
 - [ ] 非 `main` 分支自动生成 Preview
-- [ ] 已确认当前 Vercel CLI 版本可正常使用
+- [x] 已升级并验证 Vercel CLI 54.20.1
 
 ### 环境变量矩阵
 
@@ -46,7 +46,7 @@ Development、Preview、Production 三套环境至少应区分以下变量：
 
 ### 说明
 
-- 若当前后台尚未接入真实管理员角色，则管理员账号仅用于演示，不代表真实权限模型已完成。
+- 管理员入口与路由已由服务端权限保护；数据库管理权限还需应用最新迁移并写入 `app_metadata.role=admin`。
 - 手机号登录 / 微信登录若未配置完成，不应纳入上线前主流程验收。
 
 ## 3. 核心链路回归
@@ -82,10 +82,10 @@ Development、Preview、Production 三套环境至少应区分以下变量：
 - [ ] `/library`
 - [ ] `/library/[id]`
 - [ ] `/settings`
-- [ ] `/admin`
-- [ ] `/admin/qa`
-- [ ] `/admin/evals`
-- [ ] `/admin/feedback`
+- [x] `/admin`
+- [x] `/admin/qa` （页面可用，等待远程迁移）
+- [x] `/admin/evals` （页面可用，等待远程迁移）
+- [x] `/admin/feedback` （页面可用，等待远程迁移）
 - [ ] `/admin/agent`
 - [ ] `/admin/audit`
 
@@ -111,8 +111,8 @@ Development、Preview、Production 三套环境至少应区分以下变量：
 - [ ] 引用追溯链路可演示
 - [ ] 后台演示结构完整
 - [ ] README、环境变量示例、部署说明均已同步
-- [ ] `npm run lint`
-- [ ] `npm run build`
+- [x] `npm run lint`
+- [x] `npm run build`
 
 ## 7. 发布与回滚建议
 
@@ -141,5 +141,5 @@ Development、Preview、Production 三套环境至少应区分以下变量：
 
 - 手机号登录仍依赖 Supabase Phone Auth 与短信服务配置
 - 微信登录仍依赖 `custom:wechat` OAuth 配置
-- 管理后台为演示骨架，尚未接入真实管理员 RBAC
+- 管理后台已接入服务端权限边界与真实数据读写代码；线上库仍需应用 `20260705090000_admin_quality_ops.sql`
 - 资料库上传流程仍为前端原型，未接真实文件存储与后台任务

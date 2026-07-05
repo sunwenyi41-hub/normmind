@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ExternalLink, FileText, Library, Settings, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { isAdminUser } from "@/lib/admin-auth";
 import { isPreviewMode } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { getStandardLibraryDocumentById } from "@/lib/standard-documents";
@@ -16,11 +17,13 @@ export default async function LibraryDocumentPage({
 }) {
   const [{ id }, { preview }] = await Promise.all([params, searchParams]);
   const previewMode = isPreviewMode || (process.env.NODE_ENV !== "production" && preview === "1");
+  let isAdmin = false;
 
   if (!previewMode) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect(`/login?next=${encodeURIComponent(`/library/${id}`)}`);
+    isAdmin = isAdminUser(user);
   }
 
   const document = getStandardLibraryDocumentById(id);
@@ -53,13 +56,15 @@ export default async function LibraryDocumentPage({
               <Settings className="size-3.5" />
               账户设置
             </Link>
-            <Link
-              className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700"
-              href={previewMode ? "/admin?preview=1" : "/admin"}
-            >
-              <ShieldCheck className="size-3.5" />
-              管理后台
-            </Link>
+            {isAdmin ? (
+              <Link
+                className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700"
+                href="/admin"
+              >
+                <ShieldCheck className="size-3.5" />
+                管理后台
+              </Link>
+            ) : null}
           </div>
         </header>
 

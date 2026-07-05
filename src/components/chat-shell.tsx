@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
@@ -126,6 +126,156 @@ function normalizeTransportErrorMessage(message?: string) {
   return message;
 }
 
+function renderInlineAnswerText(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={`${part}-${index}`} className="font-semibold text-slate-950">{part.slice(2, -2)}</strong>;
+    }
+
+    return <Fragment key={`${part}-${index}`}>{part}</Fragment>;
+  });
+}
+
+function normalizeBrandText(text: string) {
+  return text
+    .replace(/NormMind\s*[（(]元规[）)]/gi, "规智（NormMind）")
+    .replace(/[（(]元规[）)]/g, "")
+    .replace(/元规/g, "规智");
+}
+
+function renderAnswerContent(text: string): ReactNode {
+  const lines = normalizeBrandText(text).split("\n");
+  const content: ReactNode[] = [];
+
+  const parseTableRow = (line: string) =>
+    line
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((cell) => cell.trim());
+
+  const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
+  const isTableDivider = (line: string) => {
+    if (!isTableRow(line)) return false;
+    const cells = parseTableRow(line);
+    return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+  };
+
+  for (let index = 0; index < lines.length;) {
+    const rawLine = lines[index];
+    const line = rawLine.trimEnd();
+
+    if (isTableRow(line) && index + 1 < lines.length && isTableDivider(lines[index + 1])) {
+      const headers = parseTableRow(line);
+      const rows: string[][] = [];
+      index += 2;
+
+      while (index < lines.length && isTableRow(lines[index]) && !isTableDivider(lines[index])) {
+        rows.push(parseTableRow(lines[index]));
+        index += 1;
+      }
+
+      content.push(
+        <div key={`table-${index}`} className="my-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full min-w-[440px] border-collapse text-left text-sm">
+            <thead className="bg-slate-50 text-slate-950">
+              <tr>
+                {headers.map((header, cellIndex) => (
+                  <th key={`head-${cellIndex}`} className="border-b border-slate-200 px-4 py-3 font-semibold">
+                    {renderInlineAnswerText(header)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={`row-${rowIndex}`} className="border-b border-slate-100 last:border-0">
+                  {headers.map((_, cellIndex) => (
+                    <td key={`cell-${cellIndex}`} className="px-4 py-3 align-top text-slate-700">
+                      {renderInlineAnswerText(row[cellIndex] ?? "—")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
+      continue;
+    }
+
+    const listMatch = line.trim().match(/^[-*•]\s+(.*)$/);
+    if (listMatch) {
+      const items: string[] = [];
+
+      while (index < lines.length) {
+        const match = lines[index].trim().match(/^[-*•]\s+(.*)$/);
+        if (!match) break;
+        items.push(match[1].trim());
+        index += 1;
+      }
+
+      content.push(
+        <ul key={`list-${index}`} className="my-2 space-y-2 pl-1">
+          {items.map((item, itemIndex) => (
+            <li key={`item-${itemIndex}`} className="flex gap-3">
+              <span className="mt-[11px] h-1.5 w-1.5 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
+              <span className="min-w-0 flex-1">{renderInlineAnswerText(item)}</span>
+            </li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    if (!line.trim()) {
+      content.push(<div key={`spacer-${index}`} className="h-2" aria-hidden="true" />);
+      index += 1;
+      continue;
+    }
+
+    if (/^---+$/.test(line.trim())) {
+      content.push(<div key={`divider-${index}`} className="my-1 h-px bg-slate-200" aria-hidden="true" />);
+      index += 1;
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const title = headingMatch[2].trim();
+      const headingClass =
+        level <= 2
+          ? "text-lg font-semibold text-slate-950"
+          : "text-base font-semibold text-slate-900";
+
+      content.push(
+        <div key={`heading-${index}`} className={headingClass}>
+          {renderInlineAnswerText(title)}
+        </div>,
+      );
+      index += 1;
+      continue;
+    }
+
+    content.push(
+      <p key={`line-${index}`} className="whitespace-pre-wrap">
+        {renderInlineAnswerText(line)}
+      </p>,
+    );
+    index += 1;
+  }
+
+  return (
+    <div className="space-y-2.5 text-sm leading-6 text-slate-800">
+      {content}
+    </div>
+  );
+}
+
 function getCitationLocateKeywords(citation?: Citation) {
   if (!citation) return [];
 
@@ -163,9 +313,11 @@ function buildCitationLocateHint(citation?: Citation) {
 export function ChatShell({
   initialConversations,
   previewMode = false,
+  isAdmin = false,
 }: {
   initialConversations: ConversationSummary[];
   previewMode?: boolean;
+  isAdmin?: boolean;
 }) {
   const [conversations, setConversations] = useState(initialConversations);
   const [messageCache, setMessageCache] = useState<Record<string, NormMindUIMessage[]>>({});
@@ -251,8 +403,8 @@ export function ChatShell({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_40px_120px_-52px_rgba(15,23,42,0.35)]">
-      <aside className={cn("fixed inset-y-0 start-0 z-50 flex w-72 flex-col border-e bg-[#f8fafb] transition-transform lg:static lg:z-auto lg:translate-x-0", sidebarOpen ? "translate-x-0" : "-translate-x-full")}>
+    <div className="flex h-dvh min-h-dvh overflow-hidden bg-white lg:min-h-0">
+      <aside className={cn("fixed inset-y-0 start-0 z-50 flex w-72 flex-col border-e bg-[#f8fafb] transition-transform lg:static lg:z-auto lg:w-64 lg:translate-x-0", sidebarOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex h-16 items-center justify-between border-b bg-white px-4">
           <div>
             <p className="text-sm font-semibold text-slate-900">规智工作台</p>
@@ -330,6 +482,7 @@ export function ChatShell({
             conversationId={currentConversationId}
             initialMessages={currentMessages}
             previewMode={previewMode}
+            isAdmin={isAdmin}
             onOpenSidebar={() => setSidebarOpen(true)}
             onConversationPersist={(payload) => {
               setMessageCache((current) => ({ ...current, [payload.id]: payload.messages }));
@@ -347,12 +500,14 @@ function Workspace({
   conversationId,
   initialMessages,
   previewMode,
+  isAdmin,
   onOpenSidebar,
   onConversationPersist,
 }: {
   conversationId: string;
   initialMessages: NormMindUIMessage[];
   previewMode: boolean;
+  isAdmin: boolean;
   onOpenSidebar: () => void;
   onConversationPersist: (payload: {
     id: string;
@@ -458,8 +613,8 @@ function Workspace({
     if (!loading) return;
 
     const stages = mode === "deep"
-      ? ["正在理解问题", "正在拆解检索任务", "正在调用 Coze Agent", "正在核对版本与条款", "正在整合答案"]
-      : ["正在理解问题", "正在调用 Coze Agent", "正在核对规范引用", "正在生成回答"];
+      ? ["正在理解问题", "正在拆解检索任务", "正在检索内部知识库", "正在核对版本与条款", "正在整合答案"]
+      : ["正在理解问题", "正在检索内部知识库", "正在核对规范引用", "正在生成回答"];
 
     let index = 0;
     const timer = window.setInterval(() => {
@@ -498,7 +653,7 @@ function Workspace({
             documentTitle: matchedDocument.title,
             version: matchedDocument.version,
             clause: "演示条款",
-            excerpt: `这是工作台预览模式下的演示引用。当前问题“${text}”在正式模式中会调用真实 Coze Agent，并返回可核验的规范片段、版本与条款信息。`,
+            excerpt: `这是工作台预览模式下的演示引用。当前问题“${text}”在正式模式中会调用真实内部知识库检索链路，并返回可核验的规范片段、版本与条款信息。`,
             sourceUrl: matchedDocument.sourceUrl,
           },
         ]
@@ -534,7 +689,7 @@ function Workspace({
             text:
               `这是预览模式下的演示回答。\n\n` +
               `你的问题是：${text}\n\n` +
-              `当前页面不会调用真实登录态、Supabase 持久化或 Coze 知识检索，而是用来展示完整的工作台交互效果。若要查看真实问答结果，请使用邮箱登录后测试。`,
+              `当前页面不会调用真实登录态、Supabase 持久化或内部知识库检索，而是用来展示完整的工作台交互效果。若要查看真实问答结果，请使用邮箱登录后测试。`,
           },
           {
             type: "data-answerMeta",
@@ -622,12 +777,14 @@ function Workspace({
               >
                 账户设置
               </Link>
-              <Link
-                className={cn("hidden rounded-full px-3 py-1.5 text-xs font-medium md:inline-flex", pathname === "/admin" ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}
-                href={previewMode ? "/admin?preview=1" : "/admin"}
-              >
-                管理后台
-              </Link>
+              {isAdmin ? (
+                <Link
+                  className={cn("hidden rounded-full px-3 py-1.5 text-xs font-medium md:inline-flex", pathname === "/admin" ? "bg-primary text-white" : "bg-secondary text-muted-foreground")}
+                  href="/admin"
+                >
+                  管理后台
+                </Link>
+              ) : null}
               <Button size="sm" variant="ghost" onClick={signOut}>
                 <User className="me-2 size-4" />
                 {previewMode ? "体验模式" : "退出"}
@@ -637,7 +794,7 @@ function Workspace({
 
           {view === "chat" ? (
             <>
-              <div className="border-b bg-white px-4 py-4 lg:px-6">
+              <div className="border-b bg-white px-4 py-3 lg:px-5">
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="rounded-2xl border bg-slate-50 p-1">
                     <button className={cn("rounded-xl px-3 py-2 text-xs font-medium", mode === "standard" && "bg-white text-primary shadow-sm")} onClick={() => setMode("standard")}>
@@ -662,18 +819,20 @@ function Workspace({
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {prompts.map((prompt) => (
-                    <button key={prompt} className="rounded-full border bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:border-primary/30 hover:text-primary" onClick={() => void submitMessage(prompt)}>
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
+                {messages.length === 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {prompts.map((prompt) => (
+                      <button key={prompt} className="rounded-full border bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:border-primary/30 hover:text-primary" onClick={() => void submitMessage(prompt)}>
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex min-h-0 flex-1">
                 <section className="flex min-w-0 flex-1 flex-col">
-                  <div className="flex-1 overflow-y-auto px-4 py-6 lg:px-6">
+                  <div className="flex-1 overflow-y-auto px-4 py-4 lg:px-5">
                     {messages.length === 0 ? (
                       <div className="grid h-full place-items-center">
                         <div className="max-w-xl text-center">
@@ -687,17 +846,18 @@ function Workspace({
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-5">
+                      <div className="space-y-4">
                         {messages.map((message) => (
                           <MessageCard
                             key={message.id}
                             message={message}
+                            conversationId={conversationId}
                             previewMode={previewMode}
                             bookmarked={bookmarked.includes(message.id)}
                             copied={copiedId === message.id}
                             onBookmark={() => setBookmarked((current) => current.includes(message.id) ? current.filter((item) => item !== message.id) : [...current, message.id])}
                             onCopy={async () => {
-                              await navigator.clipboard.writeText(getMessageText(message));
+                              await navigator.clipboard.writeText(normalizeBrandText(getMessageText(message)));
                               setCopiedId(message.id);
                               window.setTimeout(() => setCopiedId((current) => (current === message.id ? null : current)), 1400);
                             }}
@@ -724,7 +884,7 @@ function Workspace({
                     )}
                   </div>
 
-                  <div className="border-t bg-white px-4 py-4 lg:px-6">
+                  <div className="border-t bg-white px-4 py-3 lg:px-5">
                     <Composer
                       input={input}
                       loading={loading}
@@ -762,6 +922,7 @@ function Workspace({
 
 function MessageCard({
   message,
+  conversationId,
   previewMode,
   bookmarked,
   copied,
@@ -771,6 +932,7 @@ function MessageCard({
   onRetry,
 }: {
   message: NormMindUIMessage;
+  conversationId: string;
   previewMode: boolean;
   bookmarked: boolean;
   copied: boolean;
@@ -782,7 +944,7 @@ function MessageCard({
   if (message.role === "user") {
     return (
       <article className="flex justify-end">
-        <div className="max-w-3xl rounded-2xl rounded-se-sm bg-slate-900 px-5 py-4 text-[15px] leading-7 text-white shadow-sm">
+        <div className="max-w-3xl rounded-2xl rounded-se-sm bg-slate-900 px-4 py-3 text-sm leading-6 text-white shadow-sm">
           {getMessageText(message)}
         </div>
       </article>
@@ -811,7 +973,7 @@ function MessageCard({
         </div>
 
         <div className="rounded-2xl rounded-ss-sm border bg-white p-5 shadow-sm">
-          <p className="whitespace-pre-wrap text-[15px] leading-7">{getMessageText(message)}</p>
+          {renderAnswerContent(getMessageText(message))}
 
           {status === "insufficient_evidence" && (
             <div className="mt-4 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
@@ -848,10 +1010,10 @@ function MessageCard({
           <ActionButton title="收藏" active={bookmarked} onClick={onBookmark}>
             <Bookmark className={cn("size-3.5", bookmarked && "fill-current")} />
           </ActionButton>
-          <FeedbackButton disabled={previewMode} messageId={message.id} value="helpful">
+          <FeedbackButton conversationId={conversationId} disabled={previewMode} messageId={message.id} value="helpful">
             <ThumbsUp className="size-3.5" />
           </FeedbackButton>
-          <FeedbackButton disabled={previewMode} messageId={message.id} value="unhelpful">
+          <FeedbackButton conversationId={conversationId} disabled={previewMode} messageId={message.id} value="unhelpful">
             <ThumbsDown className="size-3.5" />
           </FeedbackButton>
           <ActionButton title="重新生成" onClick={onRetry}>
@@ -889,9 +1051,9 @@ function Composer({
   onSend: () => void;
 }) {
   return (
-    <div className="rounded-[28px] border bg-[#f8fafb] p-3 shadow-sm">
+    <div className="rounded-2xl border bg-[#f8fafb] p-2.5 shadow-sm">
       <Textarea
-        className="min-h-28 resize-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0"
+        className="min-h-16 resize-none border-0 bg-transparent px-2 py-1.5 text-sm shadow-none focus-visible:ring-0"
         placeholder={mode === "deep" ? "请输入需要多规范比对或复杂推理的问题…" : "请输入想查询的规范问题…"}
         value={input}
         onChange={(event) => setInput(event.target.value)}
@@ -902,7 +1064,7 @@ function Composer({
           }
         }}
       />
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <button className={cn("rounded-full px-3 py-1.5", mode === "standard" && "bg-white text-primary shadow-sm")} onClick={() => setMode("standard")}>
             快速模式
@@ -948,7 +1110,7 @@ function Inspector({
   const citation = citations[selectedCitation];
 
   return (
-    <aside className={cn("fixed inset-y-0 end-0 z-50 flex w-full shrink-0 flex-col border-s bg-[#f8fafb] shadow-xl transition-transform sm:w-[26rem] lg:static lg:z-auto lg:w-84 lg:translate-x-0 lg:shadow-none", open ? "translate-x-0" : "translate-x-full")}>
+    <aside className={cn("fixed inset-y-0 end-0 z-50 flex w-full shrink-0 flex-col border-s bg-[#f8fafb] shadow-xl transition-transform sm:w-[26rem] lg:sticky lg:top-0 lg:z-auto lg:h-full lg:max-h-full lg:w-80 lg:self-start lg:translate-x-0 lg:shadow-none", open ? "translate-x-0" : "translate-x-full")}>
       <div className="flex h-16 shrink-0 items-center border-b bg-white px-4">
         <div className="grid flex-1 grid-cols-2 rounded-lg bg-secondary p-1 text-xs">
           <button className={cn("rounded-md px-3 py-1.5", tab === "sources" && "bg-white font-medium text-primary shadow-sm")} onClick={() => setTab("sources")}>
@@ -1204,8 +1366,8 @@ function ProcessPanel({
   const traceId = answerMeta?.traceId;
   const status = answerMeta?.status;
   const stages = mode === "deep"
-    ? ["理解问题", "拆解任务", "调用 Coze Agent", "核对规范", "整合答案"]
-    : ["理解问题", "调用 Coze Agent", "核对引用", "生成回答"];
+    ? ["理解问题", "拆解任务", "检索内部知识库", "核对规范", "整合答案"]
+    : ["理解问题", "检索内部知识库", "核对引用", "生成回答"];
 
   return (
     <div className="space-y-4">
@@ -1238,7 +1400,7 @@ function ProcessPanel({
       {latestAssistant ? (
         <div className="rounded-xl border bg-white p-4 text-xs leading-6 text-slate-600 shadow-sm">
           <p><span className="font-medium text-slate-900">结果状态：</span>{status ?? "未知"}</p>
-          <p><span className="font-medium text-slate-900">知识代理：</span>{delivery === "coze_workflow_fallback" ? "Coze Workflow 兜底" : "Coze Bot 单轮调用"}</p>
+          <p><span className="font-medium text-slate-900">知识来源：</span>{delivery === "coze_workflow_fallback" ? "内部知识库深度检索" : "内部知识库快速检索"}</p>
           {traceId ? <p><span className="font-medium text-slate-900">Trace ID：</span>{traceId}</p> : null}
         </div>
       ) : null}
@@ -1320,7 +1482,7 @@ export function LibraryView({
 
   const uploadFlowNotes = {
     0: "支持上传 PDF、Word、CSV 等规范资料，后续将接入真实存储与权限边界。",
-    1: "模拟 Coze / 外部知识库解析状态，后续可替换为真实任务队列与进度回调。",
+    1: "模拟内部知识库 / 外部解析服务状态，后续可替换为真实任务队列与进度回调。",
     2: "在标签确认阶段补齐专业分类、版本、生效状态和业务标签。",
     3: "发布后进入知识库可检索范围，并可挂接企业库或指定规范范围。",
   } as const;
@@ -1612,7 +1774,7 @@ export function LibraryView({
                     </div>
                   ))}
                   <div className="rounded-2xl border bg-blue-50/50 px-4 py-3 text-xs leading-6 text-slate-600">
-                    当前模拟 Coze / 外部知识库回调结果：已识别为 {draftUpload.category} 类资料，建议标签 {parsedTags.slice(0, 3).join("、") || "住宅、通风"}。
+                    当前模拟内部知识库 / 外部解析服务回调结果：已识别为 {draftUpload.category} 类资料，建议标签 {parsedTags.slice(0, 3).join("、") || "住宅、通风"}。
                   </div>
                   <Button className="w-full" onClick={() => updateUploadStep(2)}>
                     进入标签确认
@@ -1984,11 +2146,13 @@ function ActionButton({
 }
 
 function FeedbackButton({
+  conversationId,
   messageId,
   value,
   children,
   disabled,
 }: {
+  conversationId: string;
   messageId: string;
   value: "helpful" | "unhelpful";
   children: React.ReactNode;
@@ -2007,7 +2171,7 @@ function FeedbackButton({
         const response = await fetch("/api/feedback", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messageId, rating: value }),
+          body: JSON.stringify({ conversationId, messageId, rating: value }),
         });
         if (response.ok) setSent(true);
       }}

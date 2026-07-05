@@ -42,6 +42,15 @@ npm run dev
 2. 在 SQL Editor 执行 `supabase/migrations/20260702000000_initial_schema.sql`，或使用 Supabase CLI 应用迁移。
 3. 在 Auth → URL Configuration 中添加本地和 Vercel 回调地址：`/auth/confirm` 与 `/auth/callback`。
 4. 将 Project URL 和 Publishable Key 写入 `.env.local`。
+5. 应用 `supabase/migrations/20260705090000_admin_quality_ops.sql`，并为管理员账号设置受信任的 `app_metadata.role=admin`。
+
+管理员页面还需服务端环境变量：
+
+```env
+ADMIN_EMAILS=admin@example.com
+```
+
+普通用户不会看到“管理后台”入口，直接访问 `/admin` 也会被服务端拦截。
 
 ### 手机与微信登录
 
@@ -60,6 +69,7 @@ npm run dev
 - `OPENROUTER_MODEL`
 - `COZE_API_TOKEN`
 - `COZE_BOT_ID`
+- `ADMIN_EMAILS`
 
 可选但推荐：
 
@@ -121,7 +131,7 @@ npm run build
 
 1. 将仓库推送至 GitHub，在 Vercel 导入仓库；非 `main` 分支自动生成 Preview，`main` 部署 Production。
 2. 在 Vercel 为 Development、Preview、Production 分别配置 `.env.example` 中的变量，避免 Preview 使用生产数据库。
-3. 推荐先升级 CLI：`npm i -g vercel@latest`。
+3. 推荐使用 Vercel CLI 54.20.1 或更高版本：`npm i -g vercel@latest`。
 4. 可用 `vercel env pull .env.local --yes` 拉取开发变量，再运行 `npm run build`。
 
 推荐上线顺序：
@@ -139,4 +149,5 @@ npm run build
 - 每个 API Route 都会服务端验证 Supabase 用户，不能只依赖页面跳转或 Proxy。
 - Coze Token 仅由服务端读取。
 - RLS 将会话、消息与反馈限制为当前用户所有。
+- 管理员路由使用服务端邮箱白名单 / 受信任 app metadata；数据库管理策略只读取 app metadata，不使用可由用户编辑的 user metadata。
 - AI 回答仅作辅助参考，重要结论必须核对规范原文并由专业人员复核。

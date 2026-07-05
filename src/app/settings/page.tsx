@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Library, Settings, ShieldCheck } from "lucide-react";
 import { AccountSettingsView } from "@/components/chat-shell";
+import { isAdminUser } from "@/lib/admin-auth";
 import { isPreviewMode } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,11 +13,13 @@ export default async function SettingsPage({
 }) {
   const { preview } = await searchParams;
   const previewMode = isPreviewMode || (process.env.NODE_ENV !== "production" && preview === "1");
+  let isAdmin = false;
 
   if (!previewMode) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login?next=%2Fsettings");
+    isAdmin = isAdminUser(user);
   }
 
   return (
@@ -36,10 +39,12 @@ export default async function SettingsPage({
               <Library className="size-3.5" />
               资料库
             </Link>
-            <Link className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700" href={previewMode ? "/admin?preview=1" : "/admin"}>
-              <ShieldCheck className="size-3.5" />
-              管理后台
-            </Link>
+            {isAdmin ? (
+              <Link className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 text-xs font-medium text-slate-700" href="/admin">
+                <ShieldCheck className="size-3.5" />
+                管理后台
+              </Link>
+            ) : null}
             <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-primary">
               <Settings className="size-3.5" />
               设置

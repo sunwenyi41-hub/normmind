@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ChatShell } from "@/components/chat-shell";
+import { isAdminUser } from "@/lib/admin-auth";
 import { isPreviewMode } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -21,5 +22,5 @@ export default async function Home({
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(100);
-  return <ChatShell initialConversations={data ?? []} />;
+  return <ChatShell initialConversations={data ?? []} isAdmin={isAdminUser(user)} />;
 }

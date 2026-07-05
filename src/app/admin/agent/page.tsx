@@ -61,7 +61,7 @@ export default async function AdminAgentPage({
           <div className="rounded-[28px] border bg-white p-6 shadow-sm">
             <p className="text-lg font-semibold text-slate-900">后续接入建议</p>
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-              <div className="rounded-2xl border border-dashed px-4 py-3">接入真实 Coze Workflow / Bot 元数据与 trace 统计</div>
+              <div className="rounded-2xl border border-dashed px-4 py-3">接入真实内部知识库工作流元数据与 trace 统计</div>
               <div className="rounded-2xl border border-dashed px-4 py-3">接入 RAG 召回对比、重排差异和版本缺失率趋势</div>
               <div className="rounded-2xl border border-dashed px-4 py-3">支持切换当前生效的普通 / 深度模式工作流 ID</div>
             </div>
@@ -71,4 +71,3 @@ export default async function AdminAgentPage({
     </AdminShell>
   );
 }
-

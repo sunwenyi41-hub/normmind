@@ -21,6 +21,13 @@ function asArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
+function withCozeApiVersion(baseUrl: string, versionPath: string) {
+  const normalizedBase = baseUrl.replace(/\/$/, "");
+  return normalizedBase.endsWith(versionPath)
+    ? normalizedBase
+    : `${normalizedBase}${versionPath}`;
+}
+
 function findFirstString(value: unknown, keys: string[]) {
   const record = asRecord(value);
   for (const key of keys) {
@@ -229,31 +236,38 @@ async function runCozeBotSingleTurn(question: string, mode: ChatMode): Promise<C
   const baseUrl = (process.env.COZE_API_BASE_URL ?? "https://api.coze.cn").replace(/\/$/, "");
 
   try {
-    const response = await fetch(`${baseUrl}/v3/chat`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        bot_id: botId,
-        user_id: `normmind-${randomUUID()}`,
-        stream: false,
-        auto_save_history: false,
-        additional_messages: [
-          {
-            role: "user",
-            content: question,
-            content_type: "text",
-          },
-        ],
-        custom_variables: {
-          mode,
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}/v3/chat`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-      }),
-      signal: controller.signal,
-      cache: "no-store",
-    });
+        body: JSON.stringify({
+          bot_id: botId,
+          user_id: `normmind-${randomUUID()}`,
+          stream: false,
+          auto_save_history: false,
+          additional_messages: [
+            {
+              role: "user",
+              content: question,
+              content_type: "text",
+            },
+          ],
+          custom_variables: {
+            mode,
+          },
+        }),
+        signal: controller.signal,
+        cache: "no-store",
+      });
+    } catch (error) {
+      throw new Error(
+        `内部知识库连接失败：${error instanceof Error ? error.message : "未知网络错误"}`,
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`Coze Bot 请求失败（${response.status}）`);
@@ -325,29 +339,53 @@ async function runCozeWorkflowFallback(question: string, mode: ChatMode): Promis
   const timeout = setTimeout(() => controller.abort(), mode === "deep" ? 180_000 : 120_000);
 
   try {
-    const baseUrl = (process.env.COZE_API_BASE_URL ?? "https://api.coze.cn/v1").replace(/\/$/, "");
-    const response = await fetch(`${baseUrl}/workflow/run`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        workflow_id: workflowId,
-        parameters: { question, query: question },
-      }),
-      signal: controller.signal,
-      cache: "no-store",
-    });
+    const baseUrl = withCozeApiVersion(
+      process.env.COZE_API_BASE_URL ?? "https://api.coze.cn",
+      "/v1",
+    );
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}/workflow/run`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          parameters: { question, query: question },
+        }),
+        signal: controller.signal,
+        cache: "no-store",
+      });
+    } catch (error) {
+      throw new Error(
+        `内部知识库兜底工作流连接失败：${error instanceof Error ? error.message : "未知网络错误"}`,
+      );
+    }
 
     if (!response.ok) throw new Error(`Coze Workflow 请求失败（${response.status}）`);
     const raw = asRecord(await response.json());
     const parsedData = parseMaybeJson(raw.data);
     const data = asRecord(parsedData);
-    const output = asRecord(parseMaybeJson(data.output ?? data.result ?? parsedData));
-    const answer = String(output.answer ?? data.answer ?? raw.answer ?? output.content ?? data.output ?? "").trim();
+    const outputValue = parseMaybeJson(data.output ?? data.result ?? parsedData);
+    const output = asRecord(outputValue);
+    const answer = String(
+      output.answer ??
+      output.output ??
+      output.content ??
+      data.answer ??
+      data.output ??
+      raw.answer ??
+      "",
+    ).trim();
     const citations = normalizeCitations(
-      output.citations ?? data.citations ?? raw.citations ?? output.references,
+      output.citations ??
+      data.citations ??
+      raw.citations ??
+      output.references ??
+      data.references ??
+      raw.references,
     );
     const traceId = String(raw.trace_id ?? raw.execute_id ?? randomUUID());
 
@@ -365,6 +403,21 @@ async function runCozeWorkflowFallback(question: string, mode: ChatMode): Promis
 }
 
 export async function runCozeKnowledgeAgent(question: string, mode: ChatMode): Promise<CozeAnswer> {
+  const preferWorkflow =
+    process.env.COZE_PREFER_WORKFLOW === "1" ||
+    Boolean(process.env.COZE_STANDARD_WORKFLOW_ID || process.env.COZE_DEEP_WORKFLOW_ID);
+
+  if (preferWorkflow) {
+    try {
+      return await runCozeWorkflowFallback(question, mode);
+    } catch (error) {
+      console.warn("coze_workflow_direct_call_failed_falling_back_to_bot", {
+        mode,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
+  }
+
   try {
     return await runCozeBotSingleTurn(question, mode);
   } catch (error) {

@@ -58,7 +58,17 @@ async function ensureConversation({
     title: title.slice(0, 36),
   });
 
-  if (error) throw new Error("创建会话失败");
+  if (error) {
+    console.error("conversation_insert_failed", {
+      conversationId,
+      userId,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error(`创建会话失败：${error.message}`);
+  }
   return supabase;
 }
 
@@ -93,7 +103,15 @@ async function persistConversationSnapshot({
     .eq("user_id", userId);
 
   if (updateError) {
-    throw new Error("保存会话快照失败");
+    console.error("conversation_snapshot_update_failed", {
+      conversationId,
+      userId,
+      code: updateError.code,
+      message: updateError.message,
+      details: updateError.details,
+      hint: updateError.hint,
+    });
+    throw new Error(`保存会话快照失败：${updateError.message}`);
   }
 
   if (!latestAssistant) return;

@@ -34,12 +34,12 @@ export const feedbackItems = [
 export const agentConfigs = [
   {
     title: "普通模式工作流",
-    description: "当前指向 Coze 单轮知识问答流程，用于常规条文查询。",
+    description: "当前指向内部知识库快速检索流程，用于常规条文查询。",
     status: "已接入",
   },
   {
     title: "深度模式工作流",
-    description: "当前指向 Coze 深度检索流程，用于多规范推理与复杂问答。",
+    description: "当前指向内部知识库深度检索流程，用于多规范推理与复杂问答。",
     status: "已接入",
   },
   {
@@ -68,7 +68,7 @@ export const auditItems = [
     title: "住宅设计规范",
     issue: "部分回答缺少条款号，仅返回规范名称与摘要片段。",
     severity: "中",
-    action: "优先补齐 Coze 返回字段映射，确保 clause 写入 citations。",
+    action: "优先补齐知识库返回字段映射，确保 clause 写入 citations。",
   },
   {
     title: "建筑设计防火规范",
