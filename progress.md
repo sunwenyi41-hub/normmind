@@ -233,7 +233,8 @@ TODO LIST
 
 - [x] 清理并补齐 README、环境变量示例和部署说明
 - [x] 校验本地、Preview、Production 环境变量配置
-- [ ] 配置并验证 Vercel Preview / Production 部署
+- [x] 配置并验证 Vercel Preview / Production 部署
+- [x] 修复邮箱确认回调，兼容 PKCE `code` 与 `token_hash` 两种邮件确认格式
 - [x] 准备测试账号、测试数据和上线检查清单
 - [ ] 跑通登录、问答、历史、引用、反馈全链路回归
 - [ ] 复查 Supabase RLS、密钥边界和错误监控
@@ -256,6 +257,8 @@ TODO LIST
 遗留事项
 
 - Production 已上线；尚未建立 GitHub PR 自动 Preview 流程。
+- 邮箱确认已兼容 Supabase PKCE `code` 回落到站点根路径及 `token_hash` 邮件模板两种流程。
+- 手机号注册按当前产品决定暂不开放。
 - GitHub remote 尚未建立；Supabase / GitHub 连接器令牌过期，需重新登录后完成迁移、回调域名与推送。
 - 尚未完成真实登录、问答、历史、引用、反馈链路的上线前回归记录。
 - 尚未补充 Production 级管理员权限与后台真实数据联动的上线说明。

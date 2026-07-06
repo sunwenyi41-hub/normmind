@@ -8,7 +8,15 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) return NextResponse.redirect(new URL(next, request.url));
+    if (!error) return noStoreRedirect(new URL(next, request.url));
   }
-  return NextResponse.redirect(new URL(`/login?error=oauth&next=${encodeURIComponent(next)}`, request.url));
+  return noStoreRedirect(
+    new URL(`/login?error=oauth&next=${encodeURIComponent(next)}`, request.url),
+  );
+}
+
+function noStoreRedirect(url: URL) {
+  const response = NextResponse.redirect(url);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }

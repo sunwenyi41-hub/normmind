@@ -1,0 +1,18 @@
+# Feature Specification: 发布收口与认证回调
+
+## 目标
+
+确保本地与生产环境的邮箱确认链接都能完成账号验证、建立会话并安全返回工作台。
+
+## 用户场景
+
+- 新用户点击确认邮件后，即使 Supabase 返回 PKCE `code` 到站点根路径，也会自动完成确认。
+- 采用自定义邮件模板时，`token_hash + type` 仍可通过 `/auth/confirm` 完成验证。
+- 无效或过期链接返回登录页并显示清晰错误，不进入循环跳转。
+
+## 验收标准
+
+- `/auth/confirm?code=...` 调用 `exchangeCodeForSession`。
+- `/?code=...` 自动转发到认证回调并保留查询参数。
+- 原有 `token_hash + type` 流程不受影响。
+- 认证回调响应禁止共享缓存。
