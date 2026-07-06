@@ -253,6 +253,7 @@ TODO LIST
 - 已同步更新 `.env.example` 与 `AGENTS.md`，使阶段 6 的部署文档与协作要求可追踪。
 - 已升级 Vercel CLI 至 54.20.1，并将现有必需环境变量同步到 Development / Preview / Production。
 - 已完成 Vercel Production 首次部署：`https://normmind.vercel.app`，状态 Ready，线上首页健康检查通过。
+- 已部署邮箱确认回调修复；生产环境根路径收到 PKCE `code` 时返回 307 至 `/auth/callback`，并设置 `private, no-store`。
 
 遗留事项
 
