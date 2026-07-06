@@ -82,6 +82,7 @@ export function AuthForm({
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(initialMessage);
 
@@ -125,6 +126,24 @@ export function AuthForm({
         router.push(redirectTo);
         router.refresh();
       }
+    } catch (error) {
+      setMessage(formatAuthError(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitPasswordReset(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setMessage(null);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
+      });
+      if (error) throw error;
+      setMessage("如果该邮箱已注册，重置密码邮件将很快发送，请检查收件箱和垃圾邮件。");
     } catch (error) {
       setMessage(formatAuthError(error));
     } finally {
@@ -235,10 +254,16 @@ export function AuthForm({
               <Building2 className="size-5" />
             </div>
             <CardTitle className="text-2xl">
-              {isSignUp ? "创建账号" : "欢迎使用规智"}
+              {isForgotPassword
+                ? "找回密码"
+                : isSignUp
+                  ? "创建账号"
+                  : "欢迎使用规智"}
             </CardTitle>
             <CardDescription>
-              {isSignUp
+              {isForgotPassword
+                ? "输入注册邮箱，我们会发送安全的密码重置链接"
+                : isSignUp
                 ? "注册后即可保存查询记录与反馈"
                 : "登录后继续你的规范检索工作"}
             </CardDescription>
@@ -274,7 +299,39 @@ export function AuthForm({
               </button>
             </div>
 
-            {method === "email" ? (
+            {method === "email" && isForgotPassword ? (
+              <form className="space-y-4" onSubmit={submitPasswordReset}>
+                <label className="block space-y-2 text-sm font-medium">
+                  注册邮箱
+                  <div className="relative">
+                    <Mail className="absolute start-3 top-3 size-4 text-muted-foreground" />
+                    <Input
+                      className="ps-10"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@company.com"
+                    />
+                  </div>
+                </label>
+                <StatusMessage message={message} />
+                <Button className="w-full" disabled={loading}>
+                  {loading ? <Loader2 className="size-4 animate-spin" /> : <>发送重置邮件<ArrowRight className="size-4" /></>}
+                </Button>
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setMessage(null);
+                  }}
+                >
+                  <ArrowLeft className="size-3.5" />返回登录
+                </button>
+              </form>
+            ) : method === "email" ? (
               <form className="space-y-4" onSubmit={submitEmail}>
                 <label className="block space-y-2 text-sm font-medium">
                   邮箱
@@ -307,6 +364,18 @@ export function AuthForm({
                     />
                   </div>
                 </label>
+                {!isSignUp ? (
+                  <button
+                    type="button"
+                    className="block w-full text-end text-sm text-primary hover:underline"
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setMessage(null);
+                    }}
+                  >
+                    忘记密码？
+                  </button>
+                ) : null}
                 <StatusMessage message={message} />
                 <Button className="w-full" disabled={loading}>
                   {loading ? (
@@ -386,7 +455,7 @@ export function AuthForm({
               </form>
             )}
 
-            {!isSignUp && (
+            {!isSignUp && !isForgotPassword && (
               <>
                 <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="h-px flex-1 bg-border" />其他方式登录
@@ -411,7 +480,7 @@ export function AuthForm({
               </>
             )}
 
-            <Button
+            {!isForgotPassword ? <Button
               type="button"
               className="mt-5 w-full"
               variant="secondary"
@@ -419,9 +488,9 @@ export function AuthForm({
             >
               进入工作台预览
               <ArrowRight className="size-4" />
-            </Button>
+            </Button> : null}
 
-            {method === "email" && (
+            {method === "email" && !isForgotPassword && (
               <button
                 className="mt-5 w-full text-sm text-muted-foreground hover:text-foreground"
                 onClick={() => {

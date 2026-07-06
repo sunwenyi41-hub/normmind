@@ -129,6 +129,8 @@ Development、Preview、Production 三套环境至少应区分以下变量：
 - [ ] 首次登录
 - [x] 邮箱确认兼容 PKCE `code` 与 `token_hash` 两种格式
 - [x] 根路径收到 PKCE `code` 时自动转入认证回调
+- [x] 忘记密码邮件使用 PKCE 回调进入 `/reset-password`
+- [x] 无有效恢复会话时禁止访问设置新密码页面
 - [ ] 首次问答
 - [ ] 首次查看引用 PDF
 

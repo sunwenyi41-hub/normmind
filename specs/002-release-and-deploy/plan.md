@@ -5,3 +5,5 @@
 3. 为认证响应设置私有、禁止缓存响应头。
 4. 执行 lint、build，并部署到 Vercel Production。
 5. 更新 `progress.md` 与发布检查清单。
+6. 在登录页增加忘记密码入口，使用 `resetPasswordForEmail` 发送 PKCE 恢复邮件。
+7. 新增设置新密码页面，校验恢复会话后使用 `updateUser` 更新密码。

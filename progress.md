@@ -235,6 +235,7 @@ TODO LIST
 - [x] 校验本地、Preview、Production 环境变量配置
 - [x] 配置并验证 Vercel Preview / Production 部署
 - [x] 修复邮箱确认回调，兼容 PKCE `code` 与 `token_hash` 两种邮件确认格式
+- [~] 增加忘记密码邮件、恢复会话与设置新密码完整流程
 - [x] 准备测试账号、测试数据和上线检查清单
 - [ ] 跑通登录、问答、历史、引用、反馈全链路回归
 - [ ] 复查 Supabase RLS、密钥边界和错误监控
