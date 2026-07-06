@@ -314,10 +314,12 @@ export function ChatShell({
   initialConversations,
   previewMode = false,
   isAdmin = false,
+  currentUserEmail = null,
 }: {
   initialConversations: ConversationSummary[];
   previewMode?: boolean;
   isAdmin?: boolean;
+  currentUserEmail?: string | null;
 }) {
   const [conversations, setConversations] = useState(initialConversations);
   const [messageCache, setMessageCache] = useState<Record<string, NormMindUIMessage[]>>({});
@@ -483,6 +485,7 @@ export function ChatShell({
             initialMessages={currentMessages}
             previewMode={previewMode}
             isAdmin={isAdmin}
+            currentUserEmail={currentUserEmail}
             onOpenSidebar={() => setSidebarOpen(true)}
             onConversationPersist={(payload) => {
               setMessageCache((current) => ({ ...current, [payload.id]: payload.messages }));
@@ -501,6 +504,7 @@ function Workspace({
   initialMessages,
   previewMode,
   isAdmin,
+  currentUserEmail,
   onOpenSidebar,
   onConversationPersist,
 }: {
@@ -508,6 +512,7 @@ function Workspace({
   initialMessages: NormMindUIMessage[];
   previewMode: boolean;
   isAdmin: boolean;
+  currentUserEmail: string | null;
   onOpenSidebar: () => void;
   onConversationPersist: (payload: {
     id: string;
@@ -787,7 +792,9 @@ function Workspace({
               ) : null}
               <Button size="sm" variant="ghost" onClick={signOut}>
                 <User className="me-2 size-4" />
-                {previewMode ? "体验模式" : "退出"}
+                <span className="max-w-40 truncate">
+                  {previewMode ? "体验模式" : currentUserEmail ? `${currentUserEmail} · 退出` : "退出"}
+                </span>
               </Button>
             </div>
           </div>

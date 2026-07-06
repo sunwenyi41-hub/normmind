@@ -22,5 +22,5 @@ export default async function Home({
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(100);
-  return <ChatShell initialConversations={data ?? []} isAdmin={isAdminUser(user)} />;
+  return <ChatShell initialConversations={data ?? []} currentUserEmail={user.email ?? null} isAdmin={isAdminUser(user)} />;
 }

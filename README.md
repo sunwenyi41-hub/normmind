@@ -71,6 +71,14 @@ ADMIN_EMAILS=admin@example.com
 - `COZE_BOT_ID`
 - `ADMIN_EMAILS`
 
+手机号 OTP 注册 / 登录的前端开关：
+
+```env
+NEXT_PUBLIC_PHONE_AUTH_ENABLED=1
+```
+
+只有在 Supabase Auth 启用 Phone 并配置 MessageBird、Twilio、Vonage 或 TextLocal 等短信服务商后才能打开。首次验证 OTP 会自动创建用户，之后使用同一流程登录。
+
 可选但推荐：
 
 - `LANGSMITH_TRACING`

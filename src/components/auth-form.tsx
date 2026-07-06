@@ -28,7 +28,8 @@ import { Input } from "@/components/ui/input";
 type LoginMethod = "email" | "phone";
 type CapabilityStatus = "available" | "coming_soon";
 
-const phoneAuthStatus: CapabilityStatus = "coming_soon";
+const phoneAuthStatus: CapabilityStatus =
+  process.env.NEXT_PUBLIC_PHONE_AUTH_ENABLED === "1" ? "available" : "coming_soon";
 const wechatAuthStatus: CapabilityStatus = "coming_soon";
 
 function normalizeChinesePhone(value: string) {
@@ -55,6 +56,12 @@ function formatAuthError(error: unknown) {
   }
   if (message.includes("password") && message.includes("characters")) {
     return "密码强度不足，请使用至少 8 位密码。";
+  }
+  if (message.includes("sms") && message.includes("provider")) {
+    return "短信服务商尚未配置，请联系管理员完成 Supabase Phone Auth 配置。";
+  }
+  if (message.includes("sms") && message.includes("rate")) {
+    return "短信验证码请求过于频繁，请至少等待 60 秒后再试。";
   }
 
   return error.message || fallback;
@@ -96,7 +103,8 @@ export function AuthForm({
     try {
       const supabase = createClient();
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        await supabase.auth.signOut({ scope: "local" });
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -104,8 +112,14 @@ export function AuthForm({
           },
         });
         if (error) throw error;
-        setMessage("注册成功，请前往邮箱完成验证。");
+        if (data.session) {
+          router.push(redirectTo);
+          router.refresh();
+        } else {
+          setMessage("注册成功，请前往邮箱完成验证，再使用新账号登录。");
+        }
       } else {
+        await supabase.auth.signOut({ scope: "local" });
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         router.push(redirectTo);
@@ -130,7 +144,11 @@ export function AuthForm({
     try {
       const supabase = createClient();
       if (!otpSent) {
-        const { error } = await supabase.auth.signInWithOtp({ phone: normalizedPhone });
+        await supabase.auth.signOut({ scope: "local" });
+        const { error } = await supabase.auth.signInWithOtp({
+          phone: normalizedPhone,
+          options: { shouldCreateUser: true },
+        });
         if (error) throw error;
         setOtpSent(true);
         setMessage("6 位验证码已发送，默认 60 秒后可重新获取。");

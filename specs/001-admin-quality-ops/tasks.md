@@ -15,7 +15,7 @@
 - [x] T005 [US1] 向工作台传递管理员状态 `src/app/page.tsx`
 - [x] T006 [US1] 隐藏普通用户的后台入口 `src/components/chat-shell.tsx`
 - [x] T007 [P] [US1] 隐藏资料库和设置页中的非授权入口 `src/app/library/page.tsx`, `src/app/library/[id]/page.tsx`, `src/app/settings/page.tsx`
-- [ ] T008 [US1] 用管理员和普通用户完成路由回归并记录结果 `specs/001-admin-quality-ops/quickstart.md`
+- [x] T008 [US1] 用管理员和普通用户完成路由回归并记录结果 `specs/001-admin-quality-ops/quickstart.md`
 
 ## Phase 4: User Story 2 - 真实反馈处理 (P2)
 
@@ -32,7 +32,7 @@
 ## Phase 6: Polish
 
 - [x] T015 运行 `npm run lint` 和 `npm run build`
-- [ ] T016 更新 `progress.md` 并完成阶段验收
+- [x] T016 更新 `progress.md` 并完成阶段验收
 
 ## Dependencies
 

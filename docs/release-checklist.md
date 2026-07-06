@@ -24,6 +24,7 @@ Development、Preview、Production 三套环境至少应区分以下变量：
 | `COZE_API_TOKEN` | 开发 token | 预发 token | 生产 token |
 | `COZE_BOT_ID` | 测试 bot | 预发 bot | 生产 bot |
 | `LANGSMITH_*` | 可选 | 推荐开启 | 推荐开启 |
+| `NEXT_PUBLIC_PHONE_AUTH_ENABLED` | 按需 | 短信联调后开启 | 短信服务商验收后开启 |
 
 注意：
 
@@ -91,12 +92,12 @@ Development、Preview、Production 三套环境至少应区分以下变量：
 
 ## 4. Supabase / RLS 检查
 
-- [ ] 所有公开表均启用 RLS
-- [ ] `conversations` 仅允许本人读写
-- [ ] `messages` 仅允许本人读写
-- [ ] `feedback` 仅允许本人读写
-- [ ] 使用测试账号 A 创建数据后，账号 B 无法读取
-- [ ] `supabase/tests/ownership_rls.sql` 至少手动验证一遍
+- [x] 所有公开表均启用 RLS
+- [x] `conversations` 仅允许本人读写
+- [x] `messages` 仅允许本人读写
+- [x] `feedback` 仅允许本人读写，管理员通过受信任角色处理
+- [x] 使用测试账号 A 创建数据后，账号 B 无法读取
+- [x] `supabase/tests/ownership_rls.sql` 的核心边界已在真实项目验证
 
 ## 5. 安全与密钥边界
 
