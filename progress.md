@@ -236,6 +236,7 @@ TODO LIST
 - [x] 配置并验证 Vercel Preview / Production 部署
 - [x] 修复邮箱确认回调，兼容 PKCE `code` 与 `token_hash` 两种邮件确认格式
 - [x] 增加忘记密码邮件、恢复会话与设置新密码完整流程（已兼容回调目标丢失）
+- [x] 优化过期密码恢复链接的错误落地页
 - [x] 准备测试账号、测试数据和上线检查清单
 - [ ] 跑通登录、问答、历史、引用、反馈全链路回归
 - [ ] 复查 Supabase RLS、密钥边界和错误监控
@@ -252,11 +253,12 @@ TODO LIST
 - 已补充 `README.md`，明确预览入口、环境变量说明、登录能力状态与部署顺序建议。
 - 已补充 `docs/release-checklist.md`，覆盖环境变量矩阵、测试账号、核心链路回归、RLS 校验、安全边界与回滚建议。
 - 已同步更新 `.env.example` 与 `AGENTS.md`，使阶段 6 的部署文档与协作要求可追踪。
-- 已升级 Vercel CLI 至 54.20.1，并将现有必需环境变量同步到 Development / Preview / Production。
+- 已升级 Vercel CLI 至 54.21.1，并将现有必需环境变量同步到 Development / Preview / Production。
 - 已完成 Vercel Production 首次部署：`https://normmind.vercel.app`，状态 Ready，线上首页健康检查通过。
 - 已部署邮箱确认回调修复；生产环境根路径收到 PKCE `code` 时返回 307 至 `/auth/callback`，并设置 `private, no-store`。
 - 已部署忘记密码与设置新密码闭环；无有效恢复会话访问 `/reset-password` 会安全返回登录页。
 - 已兼容 Supabase 恢复邮件回落根路径且丢失 `next` 的情况：近期恢复请求会自动进入 `/reset-password`。
+- 已将根路径收到的 `otp_expired` / `access_denied` 转为登录页友好提示，避免停留在原始错误 URL。
 
 遗留事项
 
