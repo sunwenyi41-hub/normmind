@@ -235,7 +235,7 @@ TODO LIST
 - [x] 校验本地、Preview、Production 环境变量配置
 - [x] 配置并验证 Vercel Preview / Production 部署
 - [x] 修复邮箱确认回调，兼容 PKCE `code` 与 `token_hash` 两种邮件确认格式
-- [x] 增加忘记密码邮件、恢复会话与设置新密码完整流程
+- [x] 增加忘记密码邮件、恢复会话与设置新密码完整流程（已兼容回调目标丢失）
 - [x] 准备测试账号、测试数据和上线检查清单
 - [ ] 跑通登录、问答、历史、引用、反馈全链路回归
 - [ ] 复查 Supabase RLS、密钥边界和错误监控
@@ -256,6 +256,7 @@ TODO LIST
 - 已完成 Vercel Production 首次部署：`https://normmind.vercel.app`，状态 Ready，线上首页健康检查通过。
 - 已部署邮箱确认回调修复；生产环境根路径收到 PKCE `code` 时返回 307 至 `/auth/callback`，并设置 `private, no-store`。
 - 已部署忘记密码与设置新密码闭环；无有效恢复会话访问 `/reset-password` 会安全返回登录页。
+- 已兼容 Supabase 恢复邮件回落根路径且丢失 `next` 的情况：近期恢复请求会自动进入 `/reset-password`。
 
 遗留事项
 
