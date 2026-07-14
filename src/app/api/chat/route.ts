@@ -33,6 +33,25 @@ const bodySchema = z.object({
   resume: z.record(z.string(), z.unknown()).optional(),
 });
 
+function stripInternalToolChunks(
+  stream: ReadableStream<InferUIMessageChunk<NormMindUIMessage>>,
+) {
+  return stream.pipeThrough(
+    new TransformStream<
+      InferUIMessageChunk<NormMindUIMessage>,
+      InferUIMessageChunk<NormMindUIMessage>
+    >({
+      transform(chunk, controller) {
+        if (chunk.type.startsWith("tool-")) {
+          return;
+        }
+
+        controller.enqueue(chunk);
+      },
+    }),
+  );
+}
+
 async function ensureConversation({
   conversationId,
   title,
@@ -202,13 +221,15 @@ export async function POST(request: NextRequest) {
         );
 
         writer.merge(
-          toUIMessageStream(langchainStream, {
-            onError(error) {
-              capture.status = "failed";
-              capture.traceId = randomUUID();
-              console.error("langchain_stream_failed", error);
-            },
-          }) as ReadableStream<InferUIMessageChunk<NormMindUIMessage>>,
+          stripInternalToolChunks(
+            toUIMessageStream(langchainStream, {
+              onError(error) {
+                capture.status = "failed";
+                capture.traceId = randomUUID();
+                console.error("langchain_stream_failed", error);
+              },
+            }) as ReadableStream<InferUIMessageChunk<NormMindUIMessage>>,
+          ),
         );
       },
       onEnd: async ({ messages }) => {
