@@ -37,7 +37,13 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch (error) {
+    console.error("proxy_supabase_session_refresh_failed", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
   return response;
 }
 

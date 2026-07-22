@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth-form";
+import { safeGetUser } from "@/lib/auth";
 import { isPreviewMode } from "@/lib/env";
 import { getSafeRedirectPath } from "@/lib/redirect";
 import { createClient } from "@/lib/supabase/server";
@@ -18,7 +19,7 @@ export default async function LoginPage({
   }
   if (isPreviewMode) redirect("/");
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await safeGetUser(supabase);
   if (user) redirect(getSafeRedirectPath(next));
   return <AuthForm initialMessage={initialMessage} redirectTo={getSafeRedirectPath(next)} />;
 }

@@ -23,6 +23,19 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   return response;
 }
 
+function authServiceUnavailable(error: unknown) {
+  console.error("supabase_auth_service_unreachable", {
+    message: error instanceof Error ? error.message : String(error),
+    cause: error instanceof Error && "cause" in error ? error.cause : undefined,
+  });
+  return jsonResponse(
+    {
+      error: "认证服务暂时连接失败。请确认 Supabase 项目未暂停、Project URL 正确，或稍后重试。",
+    },
+    { status: 503 },
+  );
+}
+
 export async function POST(request: NextRequest) {
   const parsed = authEmailSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
@@ -39,23 +52,34 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === "sign-in") {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: password as string,
-    });
+    let error;
+    try {
+      ({ error } = await supabase.auth.signInWithPassword({
+        email,
+        password: password as string,
+      }));
+    } catch (caught) {
+      return authServiceUnavailable(caught);
+    }
 
     if (error) return jsonResponse({ error: error.message }, { status: 401 });
     return jsonResponse({ ok: true, redirectTo });
   }
 
   if (action === "sign-up") {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: password as string,
-      options: {
-        emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(redirectTo)}`,
-      },
-    });
+    let data;
+    let error;
+    try {
+      ({ data, error } = await supabase.auth.signUp({
+        email,
+        password: password as string,
+        options: {
+          emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(redirectTo)}`,
+        },
+      }));
+    } catch (caught) {
+      return authServiceUnavailable(caught);
+    }
 
     if (error) return jsonResponse({ error: error.message }, { status: 400 });
     return jsonResponse({
@@ -68,9 +92,14 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
-  });
+  let error;
+  try {
+    ({ error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
+    }));
+  } catch (caught) {
+    return authServiceUnavailable(caught);
+  }
 
   if (error) return jsonResponse({ error: error.message }, { status: 400 });
   return jsonResponse({

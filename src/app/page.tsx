@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ChatShell } from "@/components/chat-shell";
 import { isAdminUser } from "@/lib/admin-auth";
+import { safeGetUser } from "@/lib/auth";
 import { isPreviewMode } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +15,7 @@ export default async function Home({
     return <ChatShell initialConversations={[]} previewMode />;
   }
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await safeGetUser(supabase);
   if (!user) redirect("/login?next=%2F");
   const { data } = await supabase
     .from("conversations")
