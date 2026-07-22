@@ -42,6 +42,9 @@ function formatAuthError(error: unknown) {
   if (!(error instanceof Error)) return fallback;
 
   const message = error.message.toLowerCase();
+  if (message.includes("failed to fetch")) {
+    return "网络请求没有成功。请刷新页面后重试；如果仍失败，请联系管理员检查登录服务。";
+  }
   if (message.includes("email rate limit exceeded") || message.includes("over_email_send_rate_limit")) {
     return "注册邮件发送过于频繁，已触发邮件服务限制。请稍后再试，或联系管理员配置正式 SMTP 邮件服务。";
   }
@@ -65,6 +68,33 @@ function formatAuthError(error: unknown) {
   }
 
   return error.message || fallback;
+}
+
+async function requestEmailAuth(payload: {
+  action: "sign-in" | "sign-up" | "reset-password";
+  email: string;
+  password?: string;
+  redirectTo: string;
+}) {
+  const response = await fetch("/api/auth/email", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({})) as {
+    ok?: boolean;
+    error?: string;
+    message?: string;
+    hasSession?: boolean;
+    redirectTo?: string;
+  };
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error || "登录服务暂时不可用");
+  }
+
+  return data;
 }
 
 export function AuthForm({
@@ -102,28 +132,27 @@ export function AuthForm({
     setLoading(true);
     setMessage(null);
     try {
-      const supabase = createClient();
       if (isSignUp) {
-        await supabase.auth.signOut({ scope: "local" });
-        const { data, error } = await supabase.auth.signUp({
+        const data = await requestEmailAuth({
+          action: "sign-up",
           email,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/confirm?next=${encodeURIComponent(redirectTo)}`,
-          },
+          redirectTo,
         });
-        if (error) throw error;
-        if (data.session) {
-          router.push(redirectTo);
+        if (data.hasSession) {
+          router.push(data.redirectTo ?? redirectTo);
           router.refresh();
         } else {
-          setMessage("注册成功，请前往邮箱完成验证，再使用新账号登录。");
+          setMessage(data.message ?? "注册成功，请前往邮箱完成验证，再使用新账号登录。");
         }
       } else {
-        await supabase.auth.signOut({ scope: "local" });
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        router.push(redirectTo);
+        const data = await requestEmailAuth({
+          action: "sign-in",
+          email,
+          password,
+          redirectTo,
+        });
+        router.push(data.redirectTo ?? redirectTo);
         router.refresh();
       }
     } catch (error) {
@@ -138,12 +167,12 @@ export function AuthForm({
     setLoading(true);
     setMessage(null);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/reset-password")}`,
+      const data = await requestEmailAuth({
+        action: "reset-password",
+        email,
+        redirectTo: "/reset-password",
       });
-      if (error) throw error;
-      setMessage("如果该邮箱已注册，重置密码邮件将很快发送，请检查收件箱和垃圾邮件。");
+      setMessage(data.message ?? "如果该邮箱已注册，重置密码邮件将很快发送，请检查收件箱和垃圾邮件。");
     } catch (error) {
       setMessage(formatAuthError(error));
     } finally {
