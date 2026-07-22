@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser, unauthorized } from "@/lib/auth";
+import { normalizeConversationSummaries } from "@/lib/chat";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -13,5 +14,5 @@ export async function GET() {
     .order("updated_at", { ascending: false })
     .limit(100);
   if (error) return NextResponse.json({ error: "读取会话失败" }, { status: 500 });
-  return NextResponse.json({ conversations: data });
+  return NextResponse.json({ conversations: normalizeConversationSummaries(data) });
 }

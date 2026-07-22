@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, unauthorized } from "@/lib/auth";
-import type { Citation, NormMindUIMessage } from "@/lib/chat";
+import { normalizeUIMessages, type Citation, type NormMindUIMessage } from "@/lib/chat";
 import { createClient } from "@/lib/supabase/server";
 
 type Context = { params: Promise<{ id: string }> };
@@ -58,7 +58,7 @@ export async function GET(_request: NextRequest, context: Context) {
   if (Array.isArray(conversation.messages_json) && conversation.messages_json.length > 0) {
     return NextResponse.json({
       conversation: { id: conversation.id, title: conversation.title },
-      messages: conversation.messages_json,
+      messages: normalizeUIMessages(conversation.messages_json),
     });
   }
 
@@ -72,7 +72,7 @@ export async function GET(_request: NextRequest, context: Context) {
 
   return NextResponse.json({
     conversation: { id: conversation.id, title: conversation.title },
-    messages: fromLegacyRows(messages ?? []),
+    messages: normalizeUIMessages(fromLegacyRows(messages ?? [])),
   });
 }
 

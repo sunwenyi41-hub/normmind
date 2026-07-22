@@ -240,6 +240,7 @@ TODO LIST
 - [x] 修复线上回答流暴露内部工具片段导致部分浏览器页面崩溃的问题
 - [x] 将邮箱登录、注册、重置密码改为站点服务端代理调用 Supabase，避免外部用户浏览器直连 Supabase 失败
 - [x] 优化 Supabase Auth 域名不可达时的页面降级，避免旧登录态浏览器进入全局错误页
+- [x] 增加会话列表与消息快照容错清洗，避免普通账号历史数据结构异常导致工作台渲染失败
 - [x] 准备测试账号、测试数据和上线检查清单
 - [ ] 跑通登录、问答、历史、引用、反馈全链路回归
 - [ ] 复查 Supabase RLS、密钥边界和错误监控
@@ -266,9 +267,11 @@ TODO LIST
 - 已补充全局中文错误兜底页，即使前端渲染异常也会提供重试与返回工作台入口。
 - 已新增 `/api/auth/email` 站点内登录代理，邮箱登录 / 注册 / 重置密码由 Vercel 服务端连接 Supabase，降低部分网络环境下浏览器直连 Supabase 导致 `Failed to fetch` 的风险。
 - 已为首页、登录页、后台布局和会话刷新中间件补充 Supabase Auth 网络异常捕获；当 Supabase 项目域名不可解析时，页面会安全回到登录页，登录接口会返回中文认证服务不可达提示。
+- 已为 `messages_json` 与会话摘要增加服务端 / 客户端双侧结构清洗；旧版、缺字段或异常结构的普通账号历史记录不会再直接触发工作台全页崩溃。
 
 遗留事项
 
+- 若普通账号仍出现全局错误页，需要补采该账号浏览器控制台错误或临时清理该账号异常会话快照。
 - 当前生产日志显示 `oftbihnmtsvugonhxoli.supabase.co` 在 Vercel 运行时出现 `getaddrinfo ENOTFOUND`，需要在 Supabase Dashboard 核对项目是否暂停、Project URL 是否变化，并同步更新 Vercel 环境变量。
 - Production 已上线；尚未建立 GitHub PR 自动 Preview 流程。
 - 邮箱确认已兼容 Supabase PKCE `code` 回落到站点根路径及 `token_hash` 邮件模板两种流程。

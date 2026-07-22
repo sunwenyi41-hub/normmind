@@ -56,6 +56,8 @@ import {
   getLatestAssistantMessage,
   getMessageCitations,
   getMessageText,
+  normalizeConversationSummaries,
+  normalizeUIMessages,
 } from "@/lib/chat";
 import { isDevelopment } from "@/lib/env";
 import {
@@ -321,7 +323,7 @@ export function ChatShell({
   isAdmin?: boolean;
   currentUserEmail?: string | null;
 }) {
-  const [conversations, setConversations] = useState(initialConversations);
+  const [conversations, setConversations] = useState(() => normalizeConversationSummaries(initialConversations));
   const [messageCache, setMessageCache] = useState<Record<string, NormMindUIMessage[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draftId, setDraftId] = useState(() => crypto.randomUUID());
@@ -357,7 +359,7 @@ export function ChatShell({
       const response = await fetch(`/api/conversations/${id}`);
       if (!response.ok) return;
       const data = await response.json();
-      setMessageCache((current) => ({ ...current, [id]: data.messages ?? [] }));
+      setMessageCache((current) => ({ ...current, [id]: normalizeUIMessages(data.messages) }));
       setActiveId(id);
     } finally {
       setLoadingConversation(false);
@@ -389,7 +391,7 @@ export function ChatShell({
       const response = await fetch("/api/dev/seed", { method: "POST" });
       const data = await response.json().catch(() => null);
       if (!response.ok) return;
-      setConversations(data?.conversations ?? []);
+      setConversations(normalizeConversationSummaries(data?.conversations));
       if (data?.seededConversationId) {
         await loadConversation(String(data.seededConversationId));
       }
